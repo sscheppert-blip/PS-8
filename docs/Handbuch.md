@@ -391,3 +391,8 @@ DAW-Takt, dort läuft PS-8 immer mit eigenem Tempo.
 **Es pfeift** – RESONANCE zurückdrehen. Ganz rechts schwingt das Filter absichtlich selbst.
 
 **CLIP leuchtet** – VOLUME oder DRIVE zurücknehmen.
+
+---
+
+*Ideen und Ohren: ein Mensch. Code, DSP und dieses Handbuch: Claude Code (Claude Opus 5.5,
+mittlerer Aufwand). Die meisten Blumen gehören dem Roboter.* 🤖💐

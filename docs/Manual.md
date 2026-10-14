@@ -389,3 +389,8 @@ always runs on its own tempo there.
 **It whistles** – turn RESONANCE down. Fully right, the filter self-oscillates on purpose.
 
 **CLIP is lit** – turn VOLUME or DRIVE down.
+
+---
+
+*Made with ideas and ears by a human, and with code, DSP and this manual by Claude Code
+(Claude Opus 5.5, medium effort). Most of the flowers belong to the robot.* 🤖💐
