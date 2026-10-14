@@ -11,11 +11,12 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 - LFO (5 shapes, free or host-synced) on pitch, VCO 2, cutoff, FM or volume
 - Internal tempo or locked to the host's bar position, 1/4 … 1/32 incl. triplets
 - MIDI: play single steps, advance, retrigger and reset by note
+- Patchbay with 26 jacks: re-route envelopes, oscillators, sequencer clock, run and reset by cable;
+  feedback and audio-rate patches allowed, DAW side-chain into EXT IN
+- Presets: 14 factory presets, save your own (incl. cables) as plain files in your user folder;
+  the window size is remembered
 - SCRAM button: stops the sequencer and silences the voice
 - Oversampled (4× up to 48 kHz, 2× up to 96 kHz)
-
-**Coming in a future version:** the patchbay. The jacks are already on the panel (stamped
-"OFFLINE"); patch cables to re-route envelopes, sequencer and modulation will follow in an update.
 
 **Manual:** [English](docs/Manual.md) · [Deutsch](docs/Handbuch.md) · **Schnellstart (German quick start):** [docs/Schnellstart.md](docs/Schnellstart.md)
 

@@ -11,7 +11,8 @@ Sequencer spielt dazu pro Step eine eigene Tonhöhe und Lautstärke.
 ## Loslegen in der DAW
 
 1. PS-8 auf eine MIDI-Spur laden.
-2. Transport starten – der Sequencer läuft im Takt mit (Schalter **HOST**, **RUN** oben).
+2. **RUN** nach oben schalten (ab Werk ist der Sequencer aus) und den Transport starten – der
+   Sequencer läuft im Takt mit (Schalter **HOST**).
 3. An **FREQUENCY**, **EG AMOUNT**, **CUTOFF** und den **DECAY**-Reglern drehen.
 
 Doppelklick auf einen Regler setzt ihn zurück. Beim Drehen zeigt eine kleine Anzeige den Wert.
@@ -69,6 +70,25 @@ Leuchttaster hinter der eingestellten Länge sind abgedunkelt.
 
 Tipp: **RUN** aus und die Steps per MIDI-Clip spielen – so baust du beliebig lange Rhythmen.
 
-## Noch nicht drin
+## Presets
 
-Die **PATCH**-Buchsen sind noch Deko (Stempel „OFFLINE“); das Verkabeln kommt in einer späteren Version.
+Oben im Typenschild: **◀ ▶** blättert durch die Presets (Init, Werks-Presets, deine eigenen),
+**SAVE** speichert den aktuellen Klang samt Kabeln, **MENU** (oder Klick auf den Namen) zeigt alle und
+kann umbenennen, löschen und den Ordner öffnen. Ein `*` hinter dem Namen = geändert. Deine Presets liegen
+unter `%APPDATA%\PS-8\Presets` (Windows), `~/Library/Application Support/PS-8/Presets` (Mac) bzw.
+`~/.config/PS-8/Presets` (Linux). Neue Instanzen starten immer mit Init; die Fenstergröße merkt sich
+PS-8. Mehr: [Handbuch, Kapitel 8](Handbuch.md#8-presets).
+
+## Patchbay
+
+Unten leitest du Signale per Kabel um. Ohne Kabel bleibt alles wie ab Werk.
+
+| Aktion | Ergebnis |
+|---|---|
+| Von Buchse zu Buchse ziehen | Kabel stecken (Ausgang ↔ Eingang) |
+| Stecker aus einem Eingang ziehen | Umstecken – oder ins Leere ziehen, dann ist das Kabel weg |
+| Doppelklick / Rechtsklick auf eine Buchse | Alle Kabel dort entfernen |
+
+Ausgänge haben ein schwarzes Feld. Zum Ausprobieren: **VCA EG → TEMPO** (Wirbel), **VCO 2 → VCF MOD**
+(Knurren), **VELOCITY → VCA CV** (Drone), **TRIG → VCO RST** (jeder Schlag klingt gleich – die VCOs
+laufen sonst frei wie beim analogen Original). Alle Buchsen und mehr Ideen: [Handbuch, Kapitel 7](Handbuch.md#7-patchbay).

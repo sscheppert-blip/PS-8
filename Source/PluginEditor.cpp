@@ -10,32 +10,13 @@ namespace
 
     // rows
     constexpr float auxTop = 380.0f;   // SEQUENCE / LFO / STATUS
-    constexpr float seqTop = 528.0f;   // SEQUENCER / PATCH
+    constexpr float seqTop = 528.0f;   // SEQUENCER
 
     // sequencer columns (eight per page)
     constexpr int stepsPerPage = 8;
-    constexpr float firstStepX = 260.0f, stepPitch = 78.0f;
+    constexpr float firstStepX = 290.0f, stepPitch = 118.0f;
 
     float stepX (int step) { return firstStepX + stepPitch * (float) (step % stepsPerPage); }
-
-    struct JackInfo
-    {
-        const char* label;
-        bool output;
-    };
-
-    constexpr JackInfo jacks[] =
-    {
-        { "TRIG", true },     { "VCA CV", false },  { "VELOCITY", true }, { "VCA DEC", false },
-        { "EXT IN", false },  { "VCF DEC", false }, { "NOISE", false },   { "VCF MOD", false },
-        { "VCO DEC", false }, { "VCO 1", true },    { "1>2 FM", false },  { "VCO 2", true },
-        { "PITCH", true },    { "RUN", false },     { "ADV", false },     { "RESET", false },
-    };
-
-    juce::Point<float> jackPosition (int i)
-    {
-        return { 915.0f + 74.0f * (float) (i % 4), seqTop + 72.0f + 50.0f * (float) (i / 4) };
-    }
 }
 
 FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
@@ -45,19 +26,22 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
 
     // top bar
     outputGauge = &make<ui::Gauge> ("OUTPUT", juce::StringArray { "-20", "0", "+3" });
-    outputGauge->setBounds (376, 22, 148, 90);
+    outputGauge->setBounds (404, 22, 128, 90);
     loadGauge = &make<ui::Gauge> ("LOAD", juce::StringArray { "0", "50", "100" });
-    loadGauge->setBounds (536, 22, 148, 90);
+    loadGauge->setBounds (540, 22, 128, 90);
 
     bpmNixie = &make<ui::Nixie> (3);
-    bpmNixie->setTopLeftPosition (720, 50);
+    bpmNixie->setTopLeftPosition (694, 50);
     stepNixie = &make<ui::Nixie> (2);
-    stepNixie->setTopLeftPosition (906, 50);
+    stepNixie->setTopLeftPosition (880, 50);
     runLamp = &make<ui::Lamp> (juce::Colour (0xff5ff07a), juce::Colour (0xff1e4a26));
-    runLamp->setBounds (848, 63, 24, 24);
+    runLamp->setBounds (822, 63, 24, 24);
+
+    programDisplay = &make<ui::ProgramDisplay> (processor);
+    programDisplay->setTopLeftPosition (194, 27);
 
     auto& scramButton = make<ui::PushButton> ("SCRAM", true);
-    scramButton.place ({ 1100.0f, 68.0f }, 31.0f);
+    scramButton.place ({ 1084.0f, 68.0f }, 31.0f);
     scramButton.onPress = [this] { scram(); };
 
     // oscillators
@@ -149,6 +133,10 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
         column.lamp->place ({ stepX (i), seqTop + 222.0f });
     }
 
+    // cables hang over everything else
+    patchbay = &make<ui::Patchbay> (processor);
+    patchbay->setBounds (getLocalBounds());
+
     showPage (0);
     updateLfoRateKnob (false);
     startTimerHz (30);
@@ -199,29 +187,28 @@ void FrontPanel::paint (juce::Graphics& g)
     g.fillRoundedRectangle (6.0f, 6.0f, (float) designWidth - 12.0f, (float) designHeight - 12.0f, 7.0f);
     ui::drawHazard (g, { 6.0f, (float) designHeight - 36.0f, (float) designWidth - 12.0f, 30.0f });
 
-    // name plate
+    // name plate with the program display on its right
     g.setColour (colours::ink);
-    g.fillRoundedRectangle (20.0f, 18.0f, 330.0f, 100.0f, 4.0f);
+    g.fillRoundedRectangle (20.0f, 18.0f, 372.0f, 100.0f, 4.0f);
     g.setColour (colours::plateText);
-    g.drawRect (26.0f, 24.0f, 318.0f, 88.0f, 1.0f);
+    g.drawRect (26.0f, 24.0f, 360.0f, 88.0f, 1.0f);
+    g.setColour (colours::plateText.withAlpha (0.35f));
+    g.drawLine (182.0f, 32.0f, 182.0f, 104.0f, 1.0f);
     g.setColour (colours::hazard);
     g.setFont (ui::stencilFont (46.0f));
-    g.drawText ("PS-8", juce::Rectangle<float> (38.0f, 38.0f, 150.0f, 56.0f), juce::Justification::centredLeft, false);
-    g.setColour (colours::plateText);
-    g.setFont (ui::stencilFont (15.0f));
-    g.drawText ("PERCUSSION", juce::Rectangle<float> (196.0f, 46.0f, 150.0f, 18.0f), juce::Justification::centredLeft, false);
-    g.drawText ("SYNTHESIZER", juce::Rectangle<float> (196.0f, 66.0f, 150.0f, 18.0f), juce::Justification::centredLeft, false);
-    ui::drawLabel (g, "UNIT 08 - CONTROL ROOM B", { 196.0f, 98.0f }, 10.0f, colours::dimText, juce::Justification::centredLeft);
+    g.drawText ("PS-8", juce::Rectangle<float> (38.0f, 28.0f, 140.0f, 50.0f), juce::Justification::centredLeft, false);
+    ui::drawLabel (g, "PERCUSSION SYNTHESIZER", { 39.0f, 86.0f }, 9.5f, colours::plateText, juce::Justification::centredLeft);
+    ui::drawLabel (g, "UNIT 08 - CONTROL ROOM B", { 39.0f, 101.0f }, 8.0f, colours::dimText, juce::Justification::centredLeft);
 
-    for (auto c : { juce::Point<float> (30, 28), { 340, 28 }, { 30, 108 }, { 340, 108 } })
+    for (auto c : { juce::Point<float> (30, 28), { 382, 28 }, { 30, 108 }, { 382, 108 } })
         ui::drawScrew (g, c);
 
     // tempo / step display
     g.setColour (colours::ink);
-    g.fillRoundedRectangle (706.0f, 22.0f, 290.0f, 92.0f, 4.0f);
-    ui::drawLabel (g, "TEMPO BPM", { 770.0f, 38.0f }, 10.0f, colours::dimText);
-    ui::drawLabel (g, "RUN", { 860.0f, 100.0f }, 10.0f, colours::dimText);
-    ui::drawLabel (g, "STEP", { 938.0f, 38.0f }, 10.0f, colours::dimText);
+    g.fillRoundedRectangle (680.0f, 22.0f, 290.0f, 92.0f, 4.0f);
+    ui::drawLabel (g, "TEMPO BPM", { 744.0f, 38.0f }, 10.0f, colours::dimText);
+    ui::drawLabel (g, "RUN", { 834.0f, 100.0f }, 10.0f, colours::dimText);
+    ui::drawLabel (g, "STEP", { 912.0f, 38.0f }, 10.0f, colours::dimText);
 
     // modules
     ui::drawPlate (g, { 20.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 1");
@@ -237,7 +224,7 @@ void FrontPanel::paint (juce::Graphics& g)
     ui::drawPlate (g, { 368.0f, auxTop, 392.0f, 140.0f }, "LFO");
     ui::drawPlate (g, { 768.0f, auxTop, 412.0f, 140.0f }, "STATUS");
 
-    ui::drawPlate (g, { 20.0f, seqTop, 840.0f, 268.0f }, shownPage == 0 ? "SEQUENCER - STEPS 1-8" : "SEQUENCER - STEPS 9-16");
+    ui::drawPlate (g, { 20.0f, seqTop, 1160.0f, 268.0f }, shownPage == 0 ? "SEQUENCER - STEPS 1-8" : "SEQUENCER - STEPS 9-16");
 
     for (int i = 0; i < stepsPerPage; ++i)
     {
@@ -252,24 +239,7 @@ void FrontPanel::paint (juce::Graphics& g)
     ui::drawLabel (g, "VELOCITY", { 230.0f, seqTop + 158.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
     ui::drawLabel (g, "STEP ON", { 230.0f, seqTop + 222.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
 
-    ui::drawPlate (g, { 870.0f, seqTop, 310.0f, 268.0f }, "PATCH");
-
-    for (int i = 0; i < (int) std::size (jacks); ++i)
-        ui::drawJack (g, jackPosition (i), jacks[i].label, jacks[i].output);
-
-    // the patchbay is not wired up yet
-    {
-        juce::Graphics::ScopedSaveState save (g);
-        const auto centre = juce::Point<float> (1025.0f, seqTop + 154.0f);
-        g.addTransform (juce::AffineTransform::rotation (-0.18f, centre.x, centre.y));
-        const auto stamp = juce::Rectangle<float> (180.0f, 46.0f).withCentre (centre);
-        g.setColour (colours::panel.withAlpha (0.85f));
-        g.fillRoundedRectangle (stamp, 4.0f);
-        g.setColour (colours::red.withAlpha (0.9f));
-        g.drawRoundedRectangle (stamp.reduced (2.0f), 4.0f, 3.0f);
-        g.setFont (ui::stencilFont (26.0f));
-        g.drawText ("OFFLINE", stamp, juce::Justification::centred, false);
-    }
+    ui::Patchbay::paintPanel (g, (float) designWidth);
 }
 
 void FrontPanel::scram()
@@ -290,6 +260,8 @@ void FrontPanel::timerCallback()
 {
     auto& state = processor.getState();
     auto& display = processor.getDisplay();
+    patchbay->update();
+    programDisplay->update();
     const auto now = juce::Time::getMillisecondCounterHiRes();
 
     if (const auto page = state.getRawParameterValue (id::viewPage)->load() > 0.5f ? 1 : 0; page != shownPage)
@@ -346,11 +318,18 @@ PS8AudioProcessorEditor::PS8AudioProcessorEditor (PS8AudioProcessor& p)
 
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio ((double) FrontPanel::designWidth / FrontPanel::designHeight);
-    setResizeLimits (720, 505, 1800, 1263);
-    setSize (1080, 758);
+    setResizeLimits (minWidth, 610, maxWidth, 1524);
+
+    // the last window size, shared by all instances
+    const auto width = juce::jlimit (minWidth, maxWidth, settings->getEditorWidth (1020));
+    setSize (width, juce::roundToInt ((double) width * FrontPanel::designHeight / FrontPanel::designWidth));
+    sizeRestored = true;
 }
 
 void PS8AudioProcessorEditor::resized()
 {
     panel.setTransform (juce::AffineTransform::scale ((float) getWidth() / (float) FrontPanel::designWidth));
+
+    if (sizeRestored)
+        settings->setEditorWidth (getWidth());
 }

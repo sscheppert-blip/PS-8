@@ -95,6 +95,78 @@ namespace ps8::ui
         }
     }
 
+    void drawAppIcon (juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        const auto size = juce::jmin (area.getWidth(), area.getHeight());
+        const auto tile = juce::Rectangle<float> (size, size).withCentre (area.getCentre());
+        const auto c = tile.getCentre();
+        const auto u = size / 100.0f;   // one percent of the icon
+
+        // panel-green tile
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffa9bfb0), c.x, tile.getY(),
+                                                 juce::Colour (0xff5f7368), c.x, tile.getBottom(), false));
+        g.fillRoundedRectangle (tile.reduced (2.0f * u), 20.0f * u);
+        g.setColour (juce::Colour (0xff3d4a42));
+        g.drawRoundedRectangle (tile.reduced (2.5f * u), 19.5f * u, 1.5f * u);
+
+        // hazard ring
+        const auto ring = juce::Rectangle<float> (84.0f * u, 84.0f * u).withCentre (c);
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            juce::Path clip;
+            clip.addEllipse (ring);
+            g.reduceClipRegion (clip);
+            g.setColour (colours::hazard);
+            g.fillRect (ring);
+            g.setColour (juce::Colour (0xff1b1b1b));
+
+            const auto h = ring.getHeight();
+            const auto pitch = 16.0f * u;
+
+            for (auto x = ring.getX() - h; x < ring.getRight(); x += pitch)
+            {
+                juce::Path stripe;
+                stripe.startNewSubPath (x, ring.getBottom());
+                stripe.lineTo (x + pitch * 0.5f, ring.getBottom());
+                stripe.lineTo (x + pitch * 0.5f + h, ring.getY());
+                stripe.lineTo (x + h, ring.getY());
+                stripe.closeSubPath();
+                g.fillPath (stripe);
+            }
+        }
+
+        g.setColour (juce::Colour (0xff1b1b1b));
+        g.drawEllipse (ring, 1.5f * u);
+
+        // nixie tube face with a glowing 8
+        const auto face = juce::Rectangle<float> (62.0f * u, 62.0f * u).withCentre (c);
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff3a220d), c.x, c.y - 10.0f * u,
+                                                 juce::Colour (0xff120a04), c.x, face.getBottom(), true));
+        g.fillEllipse (face);
+        g.setColour (juce::Colour (0xff7a6a55));
+        g.drawEllipse (face, 1.8f * u);
+
+        const auto font = juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 54.0f * u, juce::Font::bold));
+        const auto digitArea = face.translated (0.0f, 1.0f * u);
+
+        constexpr float glow[][2] { { 8.0f, 0.10f }, { 5.0f, 0.18f }, { 2.5f, 0.3f } };   // extra height, alpha
+
+        for (const auto& layer : glow)
+        {
+            g.setFont (font.withHeight ((54.0f + layer[0]) * u));
+            g.setColour (colours::nixie.withAlpha (layer[1]));
+            g.drawText ("8", digitArea, juce::Justification::centred, false);
+        }
+
+        g.setFont (font);
+        g.setColour (juce::Colour (0xffffc070));
+        g.drawText ("8", digitArea, juce::Justification::centred, false);
+
+        // glass highlight
+        g.setColour (juce::Colours::white.withAlpha (0.10f));
+        g.fillEllipse (juce::Rectangle<float> (34.0f * u, 16.0f * u).withCentre (c.translated (-6.0f * u, -19.0f * u)));
+    }
+
     void drawJack (juce::Graphics& g, juce::Point<float> centre, const juce::String& label, bool output)
     {
         drawLabel (g, label, { centre.x, centre.y - 19.0f }, 10.0f);

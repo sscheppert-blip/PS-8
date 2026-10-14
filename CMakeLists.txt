@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(PS8 VERSION 0.1.0 LANGUAGES C CXX)
+project(PS8 VERSION 0.2.0 LANGUAGES C CXX)
 
 option(PS8_BUILD_TESTS "Build the offline tests" ON)
 option(PS8_COPY_PLUGIN "Copy the built plugins into the user's plugin folders" ON)
@@ -35,6 +35,7 @@ juce_add_plugin(PS8
     BUNDLE_ID                "io.github.sscheppert-blip.ps8"
     PLUGIN_MANUFACTURER_CODE Sbli
     PLUGIN_CODE              Ps08
+    ICON_BIG                 "${CMAKE_CURRENT_SOURCE_DIR}/design/icon.png"
     FORMATS                  AU VST3 Standalone
     IS_SYNTH                 TRUE
     NEEDS_MIDI_INPUT         TRUE
@@ -49,9 +50,13 @@ juce_add_plugin(PS8
 set(PS8_SOURCES
     Source/dsp/Engine.cpp
     Source/dsp/Sequencer.cpp
+    Source/FactoryPresets.cpp
     Source/Parameters.cpp
+    Source/Presets.cpp
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
+    Source/ui/Patchbay.cpp
+    Source/ui/ProgramDisplay.cpp
     Source/ui/Widgets.cpp)
 
 target_sources(PS8 PRIVATE ${PS8_SOURCES})

@@ -94,7 +94,7 @@ namespace ps8::params
 
         add (layout, id::tempo, "Tempo", 20.0f, 300.0f, 120.0f,
              [] (float v, int) { return juce::String (v, 1) + " BPM"; }, 0.1f);
-        addBool (layout, id::run, "Run", true, "Stop", "Run");
+        addBool (layout, id::run, "Run", false, "Stop", "Run");
         addBool (layout, id::hostClock, "Clock", true, "Internal", "Host");
         layout.add (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { id::rate, 1 }, "Rate",

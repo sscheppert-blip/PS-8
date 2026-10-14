@@ -28,6 +28,8 @@ namespace ps8::ui
     void drawScrew (juce::Graphics&, juce::Point<float> centre);
     void drawPlate (juce::Graphics&, juce::Rectangle<float> area, const juce::String& title);
     void drawHazard (juce::Graphics&, juce::Rectangle<float> area);
+    // the app icon: a nixie "8" in a hazard-striped ring on a panel-green tile
+    void drawAppIcon (juce::Graphics&, juce::Rectangle<float> area);
     void drawChrome (juce::Graphics&, juce::Point<float> centre, float radius);
     void drawJack (juce::Graphics&, juce::Point<float> centre, const juce::String& label, bool output);
     void drawLabel (juce::Graphics&, const juce::String& text, juce::Point<float> centre, float height,

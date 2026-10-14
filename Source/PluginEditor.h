@@ -1,6 +1,8 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "ui/Patchbay.h"
+#include "ui/ProgramDisplay.h"
 #include "ui/Widgets.h"
 
 // The front panel, laid out in design coordinates (designWidth x designHeight) and scaled as a whole.
@@ -8,7 +10,7 @@ class FrontPanel final : public juce::Component,
                          private juce::Timer
 {
 public:
-    static constexpr int designWidth = 1200, designHeight = 842;
+    static constexpr int designWidth = 1200, designHeight = 1016;
 
     explicit FrontPanel (PS8AudioProcessor&);
 
@@ -47,6 +49,8 @@ private:
     ps8::ui::Annunciator* midiLamp = nullptr;
     ps8::ui::Annunciator* lfoLamp = nullptr;
     ps8::ui::Annunciator* pageLamp = nullptr;
+    ps8::ui::Patchbay* patchbay = nullptr;
+    ps8::ui::ProgramDisplay* programDisplay = nullptr;
 
     struct StepColumn
     {
@@ -72,7 +76,11 @@ public:
     void resized() override;
 
 private:
+    static constexpr int minWidth = 720, maxWidth = 1800;
+
+    juce::SharedResourcePointer<ps8::UserSettings> settings;
     FrontPanel panel;
+    bool sizeRestored = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PS8AudioProcessorEditor)
 };

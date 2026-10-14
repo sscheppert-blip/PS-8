@@ -2,9 +2,12 @@
 
 #include <cstdint>
 
+#include "Patch.h"
+
 // Percussion voice: two VCOs (triangle/square, linear FM 1→2, hard sync), white/pink noise,
 // mixer, 4-pole ladder filter (low/high pass), three decay envelopes (pitch, filter, VCA),
-// glide on the step pitch, an LFO, drive and output level. JUCE-free; runs at whatever (oversampled) rate it is prepared with.
+// glide on the step pitch, an LFO, drive and output level, plus the patchbay signals (see Patch.h).
+// JUCE-free; runs at whatever (oversampled) rate it is prepared with.
 namespace ps8::dsp
 {
     enum class PitchTarget { both, off, vco2 };
@@ -49,7 +52,16 @@ namespace ps8::dsp
         void prepare (double sampleRate) noexcept;
         void setSettings (const Settings& s) noexcept { settings = s; }
 
-        // velocity 0..1, step pitch in semitones
+        // Cables, one output mask per input (see Patch.h)
+        void setPatch (const patch::Masks& masks) noexcept;
+        bool isPatched (patch::Input in) const noexcept { return masks[(size_t) in] != 0; }
+
+        // Audio for EXT IN while no cable is plugged in; without it the noise source plays.
+        void setExtConnected (bool connected) noexcept { extConnected = connected; }
+        // next host-rate sample of that audio; the engine interpolates up to its own rate
+        void setExtSample (float v) noexcept { extTarget = v; }
+
+        // A sequencer step: velocity 0..1, step pitch in semitones. Also drives TRIG/VELOCITY/PITCH out.
         void trigger (float newVelocity, float semitones) noexcept;
 
         // phase 0..1, for an LFO locked to the host's beat
@@ -59,7 +71,15 @@ namespace ps8::dsp
         // fast fade to silence; the next trigger plays again
         void panic() noexcept;
 
+        // render = beginBlock + renderSamples. beginBlock picks up the settings; call it once per
+        // host block, then renderSamples as often as needed (e.g. one host sample at a time).
         void render (float* out, int numSamples) noexcept;
+        void beginBlock() noexcept;
+        void renderSamples (float* out, int numSamples) noexcept;
+
+        // Patched input signal at the last rendered sample (sum of its cables, 0 without one)
+        float input (patch::Input in) const noexcept { return inputs[(size_t) in]; }
+        float output (patch::Output o) const noexcept { return outputs[(size_t) o]; }
 
         bool isSilent() const noexcept { return vca.value < 1.0e-5f && vca.stage == Vca::Stage::idle; }
 
@@ -96,6 +116,9 @@ namespace ps8::dsp
             float phase = 0.0f, held = 0.0f;
         };
 
+        void fireEnvelopes (float newVelocity) noexcept;
+        float envelopeCoef (float decayKnob) const noexcept;
+        void updateDecays() noexcept;
         float renderVca() noexcept;
         float renderLfo (float increment) noexcept;
         float noise() noexcept;
@@ -112,6 +135,25 @@ namespace ps8::dsp
         Lfo lfo;
 
         float stepOctaves = 0.0f, glidedOctaves = 0.0f, velocity = 1.0f;
+
+        // per-block values (beginBlock)
+        struct Block
+        {
+            float target1 = 0, target2 = 0, targetCutoff = 0, eg1 = 0, eg2 = 0, egVcf = 0, glideCoef = 1;
+            float stepOn1 = 0, stepOn2 = 0, lfoIncrement = 0, lfoPitch1 = 0, lfoPitch2 = 0, lfoCutoff = 0;
+            float lfoFm = 0, lfoVolume = 0, targetFm = 0, targetNoise = 0, maxOct = 0, maxCutoffOct = 0;
+        } block;
+
+        // patchbay
+        patch::Masks masks {};
+        int patchedInputs[patch::numInputs] {};
+        int numPatched = 0;
+        float inputs[patch::numInputs] {}, outputs[patch::numOutputs] {};
+        patch::EdgeDetector trigEdge, vcoResetEdge;
+        int trigPulseRemaining = 0;
+        float stepVelocity = 1.0f, mute = 1.0f, decayScale = 1.0f;
+        bool muting = false, extConnected = false;
+        float extTarget = 0.0f, extValue = 0.0f;
 
         // ladder filter states
         float ladder[4] {};

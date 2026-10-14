@@ -21,12 +21,14 @@ This manual explains every control, gives sound recipes and lists all parameters
 4. [The front panel](#4-the-front-panel)
 5. [Sequencer](#5-sequencer)
 6. [Sequence, LFO and Status](#6-sequence-lfo-and-status)
-7. [MIDI](#7-midi)
-8. [Sound recipes](#8-sound-recipes)
-9. [Tips and tricks](#9-tips-and-tricks)
-10. [Parameter list](#10-parameter-list)
-11. [Specifications](#11-specifications)
-12. [Troubleshooting](#12-troubleshooting)
+7. [Patchbay](#7-patchbay)
+8. [Presets](#8-presets)
+9. [MIDI](#9-midi)
+10. [Sound recipes](#10-sound-recipes)
+11. [Tips and tricks](#11-tips-and-tricks)
+12. [Parameter list](#12-parameter-list)
+13. [Specifications](#13-specifications)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -83,7 +85,8 @@ Only do this for plugins from sources you trust: the mark is macOS's way of aski
 ## 2. Getting started
 
 1. Load PS-8 on a **MIDI/instrument track**.
-2. Press **Play** in your DAW. PS-8 follows the song – **RUN** and **HOST** are on by default.
+2. Flip **RUN** up (the sequencer starts switched off) and press **Play** in your DAW. PS-8 follows
+   the song – **HOST** is on by default.
 3. An even 8-step pattern plays. Now turn some knobs:
    - **OSCILLATOR 1 → FREQUENCY**: base pitch
    - **OSCILLATOR 1 → EG AMOUNT**: how far the pitch drops on every hit ("boom")
@@ -98,7 +101,7 @@ Only do this for plugins from sources you trust: the mark is macOS's way of aski
 | Drag a knob up/down | Change the value (a small readout shows the value while dragging) |
 | **Double-click** or **Alt + click** a knob | Back to its default |
 | Click a toggle switch | Flip it (three-way switch: upper half = up, lower half = down) |
-| Drag the window corner | Resize (the aspect ratio is kept) |
+| Drag the window corner | Resize (the aspect ratio is kept; PS-8 remembers the size) |
 
 ---
 
@@ -115,6 +118,7 @@ Only do this for plugins from sources you trust: the mark is macOS's way of aski
  VCA DECAY ─────────────────────────────────────────────┘
  SEQUENCER ─► trigger + pitch + level per step
  LFO ─► pitch, VCO 2, cutoff, FM or volume
+ PATCHBAY ─► cables re-route all of the above (section 7)
 ```
 
 Every sequencer step (or matching MIDI note) **fires all three envelopes at once**. The envelopes
@@ -129,6 +133,7 @@ the **EG AMOUNT** knobs.
 
 | Control | Function |
 |---|---|
+| **PROGRAM** | Preset name, ◀ ▶ to step through the presets, SAVE, MENU – see [8. Presets](#8-presets) |
 | **OUTPUT** (meter) | Output level: left −20 dB, centre 0 dB, right +3 dB |
 | **LOAD** (meter) | CPU load of the plugin in percent |
 | **TEMPO BPM** (nixies) | Current tempo – PS-8's own or the DAW's |
@@ -192,10 +197,10 @@ All decays range from about 3 ms to 10 s.
 | **VOLUME** | Output level |
 | **CLIP** | Lights red when the output goes above 0 dB – turn VOLUME down |
 
-### PATCH
+### PATCHBAY
 
-The jacks have **no function yet** in this version (stamped "OFFLINE"). Patching follows in a later
-version.
+The jacks at the bottom re-route envelopes, oscillators and the sequencer with cables – see
+[7. Patchbay](#7-patchbay).
 
 ---
 
@@ -219,7 +224,12 @@ version.
 or a loop wraps, the sequencer follows. **RESET** moves the start to the next step.
 
 **Velocity and level:** a step's velocity is the peak of the VCA envelope. Velocity 0 is silent – just
-like a step switched off.
+like a step switched off. As on the original, softer steps also decay a little faster: at 100 % the
+three envelopes take exactly the DECAY knob's time, at 0 % they are 30 % shorter.
+
+**Why two equal steps can sound different:** the oscillators run freely, like analog ones – a hit
+starts wherever the wave happens to be. With low pitches (kicks, toms) that changes the click and punch
+from step to step. For identical hits, patch **TRIG → VCO RST** (see chapter 7).
 
 ---
 
@@ -259,7 +269,125 @@ A small readout under each knob shows its current value.
 
 ---
 
-## 7. MIDI
+## 7. Patchbay
+
+The patchbay at the bottom re-routes signals with cables. Without cables PS-8 sounds and works exactly
+as before: everything is connected internally. A cable only changes the input it is plugged into.
+
+| Action | Result |
+|---|---|
+| Drag from one jack to another | Patch a cable (always from an output to an input, either direction) |
+| Drag a plug out of an input | Move the cable to another input – or drop it anywhere else to remove it |
+| Double-click or right-click a jack | Remove all cables on that jack |
+
+One output can feed several inputs. Several cables into one input are added up. Cables are saved with
+the project and presets, but they cannot be automated.
+
+**Levels:** envelopes and VELOCITY run from 0 to 5 V, the oscillators and VCA swing ±5 V, and TRIG is a
+5 V pulse of 5 ms. TRIG, RUN, ADV/CLK and RESET switch at 2.5 V. At inputs that add to a knob, 5 V
+covers the knob's whole range.
+
+### Outputs (black)
+
+| Jack | Signal |
+|---|---|
+| **VCO 1**, **VCO 2** | The oscillators' waveforms |
+| **VCO EG** | Pitch envelope |
+| **VCF EG** | Filter envelope |
+| **VCA EG** | VCA envelope (including the step velocity) |
+| **TRIG** | Short pulse on every sequencer step (also on MIDI notes and the TRIG/ADV buttons) |
+| **VELOCITY** | Velocity of the current step |
+| **PITCH** | Pitch of the current step, 1 V per octave |
+| **VCA** | The finished sound after the VCA, before VOLUME |
+
+### Inputs
+
+| Jack | With a cable | Without a cable |
+|---|---|---|
+| **VCO 1 CV**, **VCO 2 CV** | Pitch, 1 V per octave. PITCH into VCO 1 CV moves VCO 1 by exactly the step pitch | – |
+| **VCO RST** *(extra)* | A rising edge restarts both VCOs at the same point of the wave. TRIG → VCO RST makes every hit sound the same | Free-running VCOs |
+| **1>2 FM** | Adds to FM 1>2 AMOUNT | – |
+| **VCO DEC** | Adds to the PITCH decay | – |
+| **NOISE** | Adds to the noise LEVEL | – |
+| **EXT IN** | Replaces the noise in the mixer (level: noise LEVEL) | Noise, or the DAW's side-chain audio |
+| **VCF MOD** | Modulates the cutoff; noise VCF MOD sets the depth | Noise |
+| **VCF DEC** | Adds to the FILTER decay | – |
+| **TRIG** | A rising edge fires all three envelopes (the sequencer keeps running) | – |
+| **VELOCITY** | Adds to the velocity of every hit | – |
+| **VCA CV** | Opens the VCA directly, instead of the VCA envelope | VCA EG |
+| **VCA DEC** | Adds to the VCA decay | – |
+| **TEMPO** | Speeds the clock up: +1 V doubles the tempo (only with **INT**) | – |
+| **RUN** | The sequencer runs only while the signal is high (and RUN is on) | Always running |
+| **ADV/CLK** | External clock: every rising edge plays the next step, the own clock pauses. RUN must be on | Internal or DAW clock |
+| **RESET** | A rising edge: the next step is step 1 | – |
+
+**Audio from the DAW:** PS-8 has a side-chain input. Route a track to it in your DAW's side-chain
+routing. While it is active and no cable is in EXT IN, its audio takes the place of the noise – it
+runs through the filter, the VCA and the envelopes like the noise would.
+
+### Patch ideas
+
+- **Rolls:** VCA EG → TEMPO. Each hit speeds up the clock for a moment – bursts and rolls that follow
+  the VCA decay.
+- **Filter follows the melody:** PITCH → VCF MOD, noise VCF MOD up. Higher steps sound brighter.
+- **Growl:** VCO 2 → VCF MOD. The filter is modulated at audio rate – rough, metallic edges.
+- **Drone:** VELOCITY → VCA CV. The VCA stays open; every step changes the pitch, the velocity sets
+  the level.
+- **Accents shape the tone:** VELOCITY → VCF DEC. Loud steps get a longer filter sweep.
+- **Feedback:** VCA → EXT IN, noise LEVEL carefully up. The sound feeds back into itself – gritty and
+  unstable.
+- **Identical hits:** TRIG → VCO RST. Every kick starts with the same click and punch, like a classic
+  drum machine. (Deep Kick and Tom Melody come patched like this.)
+- **VCO as clock:** VCO 1 FREQUENCY fully left, VCO 1 → ADV/CLK, VCO 1 LEVEL down. VCO 1 now clocks
+  the sequencer; with VCO 1 EG AMOUNT up, every hit bends the tempo.
+
+---
+
+## 8. Presets
+
+The **PROGRAM** display in the name plate shows the current preset. A `*` after the name means you
+have changed something since loading it. Top right it says whether this is a **FACTORY** or a **USER**
+preset.
+
+| Control | Function |
+|---|---|
+| **◀ ▶** | Previous / next preset: Init, then the factory presets, then your own (wraps around) |
+| **SAVE** | Save the current sound as your own preset. If the name exists already, PS-8 asks before overwriting |
+| **MENU** or a click on the name | All presets at a glance, plus **Save as…**, **Rename…**, **Delete** and **Open preset folder** |
+
+**What a preset contains:** all knobs and switches, the whole step pattern (pitch, velocity, on/off,
+length, rate, scale, glide), the LFO and the patch cables. **Not** included are **RUN/STOP** and
+**INT/HOST** – so loading a preset never starts or stops the sequencer.
+
+**Factory presets** are built in and read-only. To keep a changed version, press **SAVE** and give it a
+name. They are:
+
+| Preset | |
+|---|---|
+| Deep Kick, Tom Melody, Snare, Closed Hat, Open Hat, Laser Zap, Acid Line | The recipes from chapter 10 (kick and tom with TRIG → VCO RST for even hits) |
+| Moving Groove, Random Pitches | LFO on cutoff / random step pitches, in time with the DAW |
+| Rolls (INT) | VCA EG → TEMPO. Switch the clock to **INT** – the TEMPO input only works with the own clock |
+| Growl, Drone, Feedback, Melodic Filter | The patch ideas from chapter 7 |
+
+**Where your presets live** – one file per preset (`.ps8preset`, plain XML), so you can back them up,
+copy them to another computer or share them:
+
+| System | Folder |
+|---|---|
+| Windows | `%APPDATA%\PS-8\Presets\` |
+| macOS | `~/Library/Application Support/PS-8/Presets/` |
+| Linux | `~/.config/PS-8/Presets/` |
+
+Preset files dropped into that folder show up the next time you open the menu. Deleted presets go to
+the trash.
+
+**Projects and new instances:** a new PS-8 always starts with **Init** – also the Standalone app. A
+saved project brings back exactly the sound it was saved with, including the preset name. PS-8 also
+remembers the **window size** for all instances (`settings.xml` next to the `Presets` folder).
+
+---
+
+## 9. MIDI
 
 PS-8 listens on all MIDI channels.
 
@@ -279,9 +407,10 @@ works like a drum pad with its own pitch – this way patterns can have any leng
 
 ---
 
-## 8. Sound recipes
+## 10. Sound recipes
 
-Start from a freshly loaded plugin each time. Clock positions refer to the knob position
+Start from a freshly loaded plugin each time (or pick **Init** in the PROGRAM menu). Most recipes
+are also built in as factory presets. Clock positions refer to the knob position
 (7 o'clock = fully left, 12 o'clock = centre, 5 o'clock = fully right).
 
 **Deep kick**
@@ -323,7 +452,7 @@ Start from a freshly loaded plugin each time. Clock positions refer to the knob 
 
 ---
 
-## 9. Tips and tricks
+## 11. Tips and tricks
 
 - **Polyrhythms:** set LENGTH to 5 or 7 – the pattern shifts against the bar and only repeats after
   many bars.
@@ -339,7 +468,7 @@ Start from a freshly loaded plugin each time. Clock positions refer to the knob 
 
 ---
 
-## 10. Parameter list
+## 12. Parameter list
 
 These are the parameter names in your DAW's automation.
 
@@ -370,7 +499,7 @@ These are the parameter names in your DAW's automation.
 | Drive | 0–100 % | 0 % |
 | Volume | 0–100 % | 70 % |
 | Tempo | 20–300 BPM | 120 BPM |
-| Run | Stop / Run | Run |
+| Run | Stop / Run | Stop |
 | Clock | Internal / Host | Host |
 | Rate | 1/4 … 1/32 | 1/16 |
 | Seq Pitch To | VCO 1+2 / Off / VCO 2 | VCO 1+2 |
@@ -387,11 +516,11 @@ These are the parameter names in your DAW's automation.
 | Step 1 … 16 Velocity | 0–100 % | 100 % |
 | Step 1 … 16 On | Off / On | On |
 
-The "Steps 1-8 / 9-16" view is saved with the project but cannot be automated.
+The "Steps 1-8 / 9-16" view and the patch cables are saved with the project but cannot be automated.
 
 ---
 
-## 11. Specifications
+## 13. Specifications
 
 | | |
 |---|---|
@@ -401,19 +530,22 @@ The "Steps 1-8 / 9-16" view is saved with the project but cannot be automated.
 | Oversampling | 4× up to 48 kHz, 2× up to 96 kHz |
 | Latency | a few samples (reported to the DAW) |
 | Output | mono signal on a stereo output |
+| Input | optional side-chain (mono or stereo) for EXT IN |
+| Patchbay | 17 inputs, 9 outputs |
 | Filter | 4-pole ladder, low and high pass, self-oscillating |
 | CPU | below 1 % of one core (measured on a current Mac) |
 
 ---
 
-## 12. Troubleshooting
+## 14. Troubleshooting
 
 **PS-8 doesn't show up in the DAW** – check the plugin folder (see Installation) and rescan in your DAW.
 On the Mac, unblock the plugin (see [Unblocking plugins on macOS](#unblocking-plugins-on-macos)), then
 restart the DAW.
 
 **No sound** – Is the DAW playing (with HOST)? Is RUN on? Are the LEVEL knobs and VOLUME up? Are the
-steps green? Is VELOCITY above 0? Was SCRAM pressed (then switch RUN back on)?
+steps green? Is VELOCITY above 0? Was SCRAM pressed (then switch RUN back on)? Is a cable in RUN,
+ADV/CLK or VCA CV holding things up (double-click the jack to pull it)?
 
 **The sequencer isn't in time** – set the switch to **HOST**. The Standalone has no DAW clock, so PS-8
 always runs on its own tempo there.

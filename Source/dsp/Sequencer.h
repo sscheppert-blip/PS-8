@@ -29,6 +29,10 @@ namespace ps8::seq
         // Internal clock: the first tick after a stop falls on the first sample.
         int runInternal (int numSamples, double bpm, Rate rate, Tick* out, int maxTicks) noexcept;
 
+        // Internal clock, one sample at a time (for a tempo that changes every sample).
+        // Returns the step played on this sample, or -1.
+        int clockInternal (double bpm, Rate rate) noexcept;
+
         // Host clock: one tick per grid line between ppqStart and the end of the block.
         // Pass restarted = true when the transport has just started or jumped.
         int runHost (double ppqStart, double bpm, int numSamples, Rate rate, bool restarted,
@@ -51,6 +55,7 @@ namespace ps8::seq
         double sampleRate = 48000.0;
         bool running = false;
         double samplesToNext = 0.0;
+        double stepsToNext = 0.0;   // clockInternal
         int currentStep = -1;
         int length = 8;
 

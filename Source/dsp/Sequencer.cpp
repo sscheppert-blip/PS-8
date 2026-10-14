@@ -107,6 +107,28 @@ namespace ps8::seq
         return count;
     }
 
+    int Sequencer::clockInternal (double bpm, Rate rate) noexcept
+    {
+        if (! running)
+        {
+            running = true;
+            stepsToNext = 0.0;
+        }
+
+        // counts in steps rather than samples, so a tempo change acts on the step already under way
+        const auto stepsPerSample = std::max (1.0, bpm) * stepsPerQuarter (rate) / (60.0 * sampleRate);
+        int step = -1;
+
+        if (stepsToNext < stepsPerSample)
+        {
+            step = advance();
+            stepsToNext += 1.0;
+        }
+
+        stepsToNext -= stepsPerSample;
+        return step;
+    }
+
     int Sequencer::runHost (double ppqStart, double bpm, int numSamples, Rate rate, bool restarted,
                             Tick* out, int maxTicks) noexcept
     {

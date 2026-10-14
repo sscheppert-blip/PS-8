@@ -24,7 +24,8 @@ cmake --build build
 
 The plugins are copied into the user plugin folders after building (`-DPS8_COPY_PLUGIN=OFF` to skip).
 The test runner also writes a demo pattern (`--render demo.wav`), a panel screenshot
-(`--snapshot panel.png`) and measures the CPU load (`--bench`).
+(`--snapshot panel.png`, add `patched` for a few demo cables), the app icon (`--icon design/icon.png`,
+1024 px, used for the Standalone app) and measures the CPU load (`--bench`).
 
 ## Validation (macOS)
 

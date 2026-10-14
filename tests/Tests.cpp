@@ -1,5 +1,6 @@
 // Offline tests for the PS-8 engine, sequencer and processor.
 
+#include "FactoryPresets.h"
 #include "Parameters.h"
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
@@ -433,6 +434,441 @@ static void testProcessor()
     check (std::abs (processor.getState().getRawParameterValue (id::cutoff)->load() - 0.123f) < 1.0e-3f, "state round trip");
 }
 
+//==============================================================================
+static void testPatch()
+{
+    namespace id = ps8::params::id;
+    using namespace ps8::patch;
+    const ps8::dsp::Settings init;
+
+    auto withCables = [] (std::initializer_list<std::pair<Output, Input>> cables)
+    {
+        Masks masks {};
+        for (const auto& [o, in] : cables)
+            masks[(size_t) in] |= (Mask) (1u << o);
+        return masks;
+    };
+
+    auto renderPatched = [] (const ps8::dsp::Settings& s, const Masks& masks, double seconds, float semitones = 0.0f)
+    {
+        ps8::dsp::Engine engine;
+        engine.setSettings (s);
+        engine.prepare (192000.0);
+        engine.setPatch (masks);
+        engine.trigger (1.0f, semitones);
+        std::vector<float> out ((size_t) (seconds * 192000.0));
+        engine.render (out.data(), (int) out.size());
+        return out;
+    };
+
+    {
+        const auto plain = renderHit (init, 192000.0, 0.5);
+        const auto unpatched = renderPatched (init, {}, 0.5);
+        check (plain == unpatched, "no cables: the sound is unchanged");
+    }
+
+    // VCA CV is normalled to the VCA envelope: a cable holding it open keeps the sound going
+    {
+        auto s = init;
+        s.vcaDecay = 0.2f;
+        const auto plain = renderPatched (s, {}, 1.0);
+        const auto held = renderPatched (s, withCables ({ { velocityOut, vcaCvIn } }), 1.0);
+        check (energy (held, 96000, 192000) > 100.0 * energy (plain, 96000, 192000) && energy (held, 96000, 192000) > 1.0,
+               "VELOCITY into VCA CV holds the VCA open");
+    }
+
+    // PITCH out into a VCO CV input tracks 1 V/oct
+    {
+        auto s = init;
+        s.vco1Eg = s.vco2Eg = 0.0f;
+        s.vco2Level = s.noiseLevel = 0.0f;
+        s.cutoff = 1.0f;
+        s.vcaDecay = 0.8f;
+        s.pitchTarget = ps8::dsp::PitchTarget::off;
+        const auto low = renderPatched (s, withCables ({ { pitchOut, vco1CvIn } }), 0.5, 0.0f);
+        const auto high = renderPatched (s, withCables ({ { pitchOut, vco1CvIn } }), 0.5, 12.0f);
+        const auto ratio = crossingRate (high, 192000.0, 0, 96000) / crossingRate (low, 192000.0, 0, 96000);
+        check (ratio > 1.9 && ratio < 2.1, "PITCH into VCO 1 CV: +12 steps raise VCO 1 by an octave");
+    }
+
+    // like the original: softer hits decay a little faster
+    {
+        auto s = init;
+        s.vcaDecay = 0.6f;
+        const auto loud = renderHit (s, 192000.0, 0.8, 1.0f);
+        const auto soft = renderHit (s, 192000.0, 0.8, 0.5f);
+        const auto tail = [] (const std::vector<float>& x) { return energy (x, 57600, 115200) / energy (x, 0, 9600); };
+        check (tail (soft) < 0.8 * tail (loud), "softer hits decay faster");
+    }
+
+    // VCO RST: TRIG into it starts every hit at the same oscillator phase
+    {
+        auto s = init;
+        s.vcaDecay = 0.3f;
+        s.noiseLevel = 0.0f;   // noise differs on every hit anyway
+
+        auto hitDifference = [&s] (const Masks& masks)
+        {
+            ps8::dsp::Engine engine;
+            engine.setSettings (s);
+            engine.prepare (192000.0);
+            engine.setPatch (masks);
+
+            // two hits 100000 samples apart: not a whole number of VCO 1 periods
+            std::vector<float> idle (100000), first (9600), second (9600);
+            engine.render (idle.data(), (int) idle.size());
+            engine.trigger (1.0f, 0.0f);
+            engine.render (first.data(), (int) first.size());
+            engine.render (idle.data(), (int) idle.size() - (int) first.size());
+            engine.trigger (1.0f, 0.0f);
+            engine.render (second.data(), (int) second.size());
+
+            // from 2.5 ms on: the filter needs a moment to forget what played before the hit
+            float difference = 0.0f;
+            for (size_t i = 480; i < first.size(); ++i)
+                difference = std::max (difference, std::abs (first[i] - second[i]));
+            return difference / peak (first);
+        };
+
+        const auto freeRunning = hitDifference ({});
+        const auto reset = hitDifference (withCables ({ { trigOut, vcoResetIn } }));
+        check (freeRunning > 0.3f && reset < 0.01f, "TRIG into VCO RST makes every hit the same (free running: they differ)");
+    }
+
+    // EXT IN with a cable replaces the noise in the mixer
+    {
+        auto s = init;
+        s.vco1Level = s.vco2Level = 0.0f;
+        s.noiseLevel = 1.0f;
+        s.vcaDecay = 0.6f;
+        const auto noise = renderPatched (s, {}, 0.5);
+        const auto silentExt = renderPatched (s, withCables ({ { trigOut, extIn } }), 0.5);
+        check (energy (silentExt, 19200, 96000) < 0.001 * energy (noise, 19200, 96000), "a cable in EXT IN replaces the noise");
+    }
+
+    // TRIG in fires the envelopes
+    {
+        ps8::dsp::Engine engine;
+        engine.setSettings (init);
+        engine.prepare (192000.0);
+        engine.setPatch (withCables ({ { vco1Out, trigIn } }));
+        std::vector<float> out (96000);
+        engine.render (out.data(), (int) out.size());
+        check (peak (out) > 0.05f, "a square into TRIG fires the envelopes");
+    }
+
+    // feedback patches stay finite
+    {
+        auto s = init;
+        s.resonance = 1.0f;
+        s.fmAmount = 1.0f;
+        s.noiseVcf = 1.0f;
+        s.vcaDecay = 0.8f;
+        const auto out = renderPatched (s, withCables ({ { vcaOut, extIn }, { vco2Out, vco1CvIn }, { vcaOut, vcfModIn },
+                                                         { vco1Out, fmAmountIn }, { vcaEgOut, vcaDecayIn }, { vcfEgOut, vcoDecayIn },
+                                                         { vco2Out, trigIn }, { vco1Out, vcaCvIn }, { vcaOut, noiseLevelIn } }), 1.0);
+        check (allFinite (out) && peak (out) < 3.0f, "feedback patches stay finite and bounded");
+    }
+
+    {
+        const auto masks = withCables ({ { vcaEgOut, tempoIn }, { vco2Out, vcfModIn }, { vco1Out, vcfModIn }, { trigOut, resetIn } });
+        check (PS8AudioProcessor::patchFromString (PS8AudioProcessor::patchToString (masks)) == masks
+                   && PS8AudioProcessor::patchFromString ("bogus>tempo vca>nothing") == Masks {},
+               "patch text round trip");
+    }
+
+    // sequencer jacks
+    PS8AudioProcessor processor;
+    processor.setPlayConfigDetails (0, 2, 48000.0, 512);
+    setParam (processor, id::hostClock, 0.0f);
+    setParam (processor, id::tempo, 20.0f);
+    setParam (processor, id::rate, 0.0f);   // quarters: one step every 3 s
+    setParam (processor, id::run, 1.0f);
+    processor.prepareToPlay (48000.0, 512);
+
+    auto countSteps = [&processor] (int blocks)
+    {
+        juce::AudioBuffer<float> buffer (2, 512);
+        int changes = 0, last = processor.getDisplay().step.load();
+
+        for (int i = 0; i < blocks; ++i)
+        {
+            juce::MidiBuffer none;
+            buffer.clear();
+            processor.processBlock (buffer, none);
+
+            if (const auto step = processor.getDisplay().step.load(); step != last)
+                ++changes, last = step;
+        }
+
+        return changes;
+    };
+
+    // start from step 1 with a fresh clock
+    auto restart = [&] (int blocks)
+    {
+        setParam (processor, id::run, 0.0f);
+        countSteps (1);
+        setParam (processor, id::run, 1.0f);
+        return countSteps (blocks);
+    };
+
+    const auto plainSteps = restart (188);   // 2 s
+
+    setParam (processor, id::vco1Freq, 0.0f);   // 8 Hz square, no pitch envelope
+    setParam (processor, id::vco1Eg, 0.0f);
+    setParam (processor, id::vco1Square, 1.0f);
+    processor.connect (vco1Out, advClockIn);
+    const auto clocked = restart (188);
+    check (plainSteps <= 1 && clocked >= 12 && clocked <= 20, "a square into ADV/CLK clocks the sequencer");
+    processor.clearPatch();
+
+    setParam (processor, id::vcaDecay, 0.8f);
+    processor.connect (vcaEgOut, tempoIn);
+    const auto faster = restart (188);
+    check (faster > plainSteps + 2, "VCA EG into TEMPO speeds up the clock");
+    processor.clearPatch();
+
+    // PITCH out is 0 V with the init pitches: a low RUN input stops the sequencer
+    processor.connect (pitchOut, runIn);
+    renderProcessor (processor, {}, 400);
+    check (renderProcessor (processor, {}, 200) < 1.0e-4f && ! processor.getDisplay().running.load(), "a low RUN input stops the sequencer");
+    processor.clearPatch();
+
+    // every step resets: the sequencer stays on step 1
+    setParam (processor, id::tempo, 300.0f);
+    setParam (processor, id::rate, 3.0f);
+    processor.connect (trigOut, resetIn);
+    countSteps (20);
+    bool stuck = true;
+
+    for (int i = 0; i < 100; ++i)
+    {
+        countSteps (1);
+        stuck = stuck && processor.getDisplay().step.load() == 0;
+    }
+
+    check (stuck, "TRIG into RESET keeps the sequencer on step 1");
+
+    // the patch is saved with the state
+    processor.clearPatch();
+    processor.connect (vcfEgOut, vco2CvIn);
+    processor.connect (vcaOut, extIn);
+    juce::MemoryBlock block;
+    processor.getStateInformation (block);
+    const auto version = processor.getPatchVersion();
+    processor.clearPatch();
+    processor.setStateInformation (block.getData(), (int) block.getSize());
+    check (processor.isConnected (vcfEgOut, vco2CvIn) && processor.isConnected (vcaOut, extIn)
+               && ! processor.isConnected (trigOut, resetIn) && processor.getPatchVersion() != version,
+           "patch state round trip");
+
+    // host audio into EXT IN replaces the noise
+    {
+        PS8AudioProcessor sidechained;
+        sidechained.enableAllBuses();
+        sidechained.setPlayConfigDetails (2, 2, 48000.0, 512);
+        setParam (sidechained, id::run, 0.0f);
+        setParam (sidechained, id::vco1Level, 0.0f);
+        setParam (sidechained, id::vco2Level, 0.0f);
+        setParam (sidechained, id::noiseLevel, 1.0f);
+        sidechained.prepareToPlay (48000.0, 512);
+
+        auto level = [&sidechained] (float amplitude)
+        {
+            juce::AudioBuffer<float> buffer (2, 512);
+            float p = 0.0f;
+
+            for (int b = 0; b < 20; ++b)
+            {
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < 512; ++i)
+                        buffer.setSample (c, i, amplitude * std::sin (0.0577f * (float) (b * 512 + i)));
+
+                auto midi = b == 0 ? noteOn (PS8AudioProcessor::firstStepNote) : juce::MidiBuffer();
+                sidechained.processBlock (buffer, midi);
+                p = std::max (p, buffer.getMagnitude (0, 0, 512));
+            }
+
+            renderProcessor (sidechained, {}, 400);
+            return p;
+        };
+
+        const auto silent = level (0.0f);
+        const auto loud = level (0.8f);
+        check (silent < 1.0e-3f && loud > 0.05f, "host audio into EXT IN replaces the noise");
+    }
+}
+
+// The patchbay: drag from a jack to another to patch, double-click to pull the cables.
+static void testPatchbayMouse()
+{
+    using namespace ps8::patch;
+    PS8AudioProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+
+    ps8::ui::Patchbay* patchbay = nullptr;
+    std::function<void (juce::Component&)> find = [&] (juce::Component& c)
+    {
+        if (auto* p = dynamic_cast<ps8::ui::Patchbay*> (&c))
+            patchbay = p;
+        for (auto* child : c.getChildren())
+            find (*child);
+    };
+    find (*editor);
+
+    if (patchbay == nullptr)
+    {
+        check (false, "patchbay found");
+        return;
+    }
+
+    auto source = juce::Desktop::getInstance().getMainMouseSource();
+    auto event = [&] (juce::Point<float> position, int clicks = 1, juce::ModifierKeys mods = juce::ModifierKeys::leftButtonModifier)
+    {
+        return juce::MouseEvent (source, position, mods, juce::MouseInputSource::defaultPressure, 0.0f, 0.0f, 0.0f, 0.0f,
+                                 patchbay, patchbay, juce::Time::getCurrentTime(), position, juce::Time::getCurrentTime(), clicks, false);
+    };
+
+    auto drag = [&] (juce::Point<float> from, juce::Point<float> to)
+    {
+        patchbay->mouseDown (event (from));
+        patchbay->mouseDrag (event ((from + to) * 0.5f));
+        patchbay->mouseDrag (event (to));
+        patchbay->mouseUp (event (to));
+    };
+
+    using Patchbay = ps8::ui::Patchbay;
+    const auto vcaEg = Patchbay::jackFor (vcaEgOut).centre;
+    const auto tempo = Patchbay::jackFor (tempoIn).centre;
+    const auto vcfMod = Patchbay::jackFor (vcfModIn).centre;
+
+    check (patchbay->hitTest ((int) tempo.x, (int) tempo.y) && ! patchbay->hitTest (600, 300), "patchbay only takes clicks on its jacks");
+
+    drag (vcaEg, tempo);
+    check (processor.isConnected (vcaEgOut, tempoIn), "drag from VCA EG to TEMPO patches a cable");
+
+    drag (vcfMod, vcaEg);
+    check (processor.isConnected (vcaEgOut, vcfModIn), "dragging from an input to an output works too");
+
+    drag (tempo, Patchbay::jackFor (resetIn).centre);
+    check (! processor.isConnected (vcaEgOut, tempoIn) && processor.isConnected (vcaEgOut, resetIn), "a plug moves to another input");
+
+    drag (Patchbay::jackFor (resetIn).centre, { 600.0f, 300.0f });
+    check (! processor.isConnected (vcaEgOut, resetIn), "a plug dropped off the patchbay is pulled out");
+
+    drag (vcaEg, Patchbay::jackFor (vco2Out).centre);
+    check (processor.getPatch()[(size_t) vcfModIn] == (1u << vcaEgOut) && processor.getPatch()[(size_t) tempoIn] == 0,
+           "output to output does not patch");
+
+    patchbay->mouseDoubleClick (event (vcaEg, 2));
+    check (processor.getPatch() == Masks {}, "double-click pulls all cables of a jack");
+}
+
+//==============================================================================
+static void testPresets()
+{
+    namespace id = ps8::params::id;
+    using Presets = ps8::Presets;
+
+    PS8AudioProcessor processor;
+    auto& presets = processor.getPresets();
+    auto value = [&processor] (const juce::String& paramId) { return processor.getState().getRawParameterValue (paramId)->load(); };
+
+    check (presets.current().name == "Init" && ! presets.isModified(), "a new instance starts with Init");
+    processor.setPlayConfigDetails (0, 2, 48000.0, 512);
+    processor.prepareToPlay (48000.0, 512);
+    check (value (id::run) < 0.5f && renderProcessor (processor, {}, 20) == 0.0f, "a new instance starts with the sequencer stopped");
+
+    // every factory preset names real parameters and loads
+    {
+        bool idsOk = true, loads = true;
+
+        for (const auto& preset : ps8::factoryPresets())
+        {
+            for (const auto& [paramId, v] : preset.values)
+                idsOk = idsOk && processor.getState().getParameter (paramId) != nullptr;
+
+            loads = loads && presets.load ({ preset.name, true, {} }) && presets.current().name == preset.name && ! presets.isModified();
+        }
+
+        check (ps8::factoryPresets().size() >= 12 && idsOk && loads, "factory presets load and use real parameters");
+    }
+
+    presets.load ({ "Growl", true, {} });
+    check (processor.isConnected (ps8::patch::vco2Out, ps8::patch::vcfModIn), "a factory preset brings its cables");
+    presets.loadInit();
+    check (processor.getPatch() == ps8::patch::Masks {} && std::abs (value (id::cutoff) - ps8::dsp::Settings().cutoff) < 1.0e-4f,
+           "Init resets sound and cables");
+
+    // save, change, load
+    setParam (processor, id::cutoff, 0.234f);
+    setParam (processor, id::length, 11.0f);
+    processor.connect (ps8::patch::vcaEgOut, ps8::patch::tempoIn);
+    check (presets.isModified(), "changing a knob marks the preset as modified");
+
+    check (presets.save ("My Kick: v1") && Presets::userPresetExists ("My Kick: v1") && ! presets.isModified()
+               && presets.current().name == "My Kick: v1" && ! presets.current().factory,
+           "save a user preset (any name, also with characters not allowed in file names)");
+    check (Presets::folder().isAChildOf (ps8::appDataFolder()) && Presets::fileFor ("My Kick: v1").existsAsFile(),
+           "user presets live in the app data folder");
+
+    setParam (processor, id::cutoff, 0.8f);
+    setParam (processor, id::run, 1.0f);
+    processor.clearPatch();
+    presets.loadInit();
+
+    const auto user = presets.userPresets();
+    check (user.size() == 1 && presets.load (user[0]) && std::abs (value (id::cutoff) - 0.234f) < 1.0e-4f
+               && juce::roundToInt (value (id::length)) == 11 && processor.isConnected (ps8::patch::vcaEgOut, ps8::patch::tempoIn),
+           "load a user preset with its cables");
+    check (value (id::run) > 0.5f, "loading a preset leaves RUN alone");
+
+    // stepping wraps around Init / factory / user
+    {
+        const auto all = presets.list();
+        presets.step (1);
+        const auto wrapped = presets.current() == all.front();
+        presets.step (-1);
+        check (wrapped && presets.current() == all.back(), "< and > step through all presets and wrap around");
+    }
+
+    check (presets.rename (presets.current(), "Kick Two") && presets.current().name == "Kick Two"
+               && ! Presets::userPresetExists ("My Kick: v1") && Presets::userPresetExists ("Kick Two"),
+           "rename a user preset");
+    check (! presets.rename ({ "Snare", true, {} }, "Mine") && ! presets.remove ({ "Snare", true, {} }), "factory presets are read-only");
+
+    // the preset name travels with the project; a loaded project is not "modified"
+    {
+        juce::MemoryBlock block;
+        processor.getStateInformation (block);
+
+        PS8AudioProcessor other;
+        other.setStateInformation (block.getData(), (int) block.getSize());
+        check (other.getPresets().current().name == "Kick Two" && ! other.getPresets().current().factory
+                   && ! other.getPresets().isModified(),
+               "the project remembers the preset name");
+    }
+
+    check (presets.remove (presets.current()) && presets.userPresets().empty(), "delete a user preset");
+
+    // window size
+    {
+        {
+            ps8::UserSettings settings;
+            settings.setEditorWidth (888);
+        }
+
+        ps8::UserSettings again;
+        check (again.getEditorWidth (0) == 888 && ps8::appDataFolder().getChildFile ("settings.xml").existsAsFile(),
+               "the window size is remembered per user");
+
+        PS8AudioProcessor fresh;
+        std::unique_ptr<juce::AudioProcessorEditor> editor (fresh.createEditor());
+        check (editor->getWidth() == 888, "a new window opens in the remembered size");
+    }
+}
+
 static void testDoubleClick()
 {
     PS8AudioProcessor processor;
@@ -481,6 +917,7 @@ static int renderDemo (const char* path)
     PS8AudioProcessor processor;
     processor.setPlayConfigDetails (0, 2, sampleRate, 512);
     setParam (processor, id::hostClock, 0.0f);
+    setParam (processor, id::run, 1.0f);
     processor.prepareToPlay (sampleRate, 512);
 
     std::vector<float> out;
@@ -509,10 +946,20 @@ static int renderDemo (const char* path)
     return ok ? 0 : 1;
 }
 
-// Renders the editor to a PNG file.
-static int snapshot (const char* path)
+// Renders the editor to a PNG file (optionally with a few cables patched).
+static int snapshot (const char* path, bool patched)
 {
     PS8AudioProcessor processor;
+
+    if (patched)
+    {
+        using namespace ps8::patch;
+        processor.connect (vcaEgOut, tempoIn);
+        processor.connect (vco2Out, vcfModIn);
+        processor.connect (pitchOut, vco1CvIn);
+        processor.connect (trigOut, resetIn);
+    }
+
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     editor->setSize (FrontPanel::designWidth * 2, FrontPanel::designHeight * 2);
 
@@ -525,21 +972,48 @@ static int snapshot (const char* path)
     return ok ? 0 : 1;
 }
 
+// Renders the app icon to a PNG file (the source of design/icon.png).
+static int renderIcon (const char* path, int size)
+{
+    juce::Image image (juce::Image::ARGB, size, size, true);
+    {
+        juce::Graphics g (image);
+        ps8::ui::drawAppIcon (g, image.getBounds().toFloat());
+    }
+
+    juce::File file (juce::String::fromUTF8 (path));
+    file.deleteFile();
+    juce::FileOutputStream stream (file);
+    const auto ok = stream.openedOk() && juce::PNGImageFormat().writeImageToStream (image, stream);
+    std::printf ("%s %s\n", ok ? "wrote" : "could not write", path);
+    return ok ? 0 : 1;
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInitialiser;
 
+    // presets and settings go to a scratch folder, never to the user's real one
+    const auto scratch = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                             .getChildFile ("PS8Tests-" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()));
+    ps8::setAppDataFolderOverride (scratch);
+    struct CleanUp { juce::File folder; ~CleanUp() { folder.deleteRecursively(); } } cleanUp { scratch };
+
     if (argc == 3 && std::string_view (argv[1]) == "--render")
         return renderDemo (argv[2]);
 
-    if (argc == 3 && std::string_view (argv[1]) == "--snapshot")
-        return snapshot (argv[2]);
+    if ((argc == 3 || argc == 4) && std::string_view (argv[1]) == "--snapshot")
+        return snapshot (argv[2], argc == 4 && std::string_view (argv[3]) == "patched");
+
+    if (argc == 3 && std::string_view (argv[1]) == "--icon")
+        return renderIcon (argv[2], 1024);
 
     if (argc == 2 && std::string_view (argv[1]) == "--bench")
     {
         PS8AudioProcessor processor;
         processor.setPlayConfigDetails (0, 2, 48000.0, 512);
         setParam (processor, ps8::params::id::hostClock, 0.0f);
+        setParam (processor, ps8::params::id::run, 1.0f);
         processor.prepareToPlay (48000.0, 512);
         juce::AudioBuffer<float> buffer (2, 512);
         const auto blocks = 48000 * 20 / 512;
@@ -560,6 +1034,9 @@ int main (int argc, char** argv)
     testEngine();
     testSequencer();
     testProcessor();
+    testPatch();
+    testPatchbayMouse();
+    testPresets();
     testDoubleClick();
 
     std::printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASSED" : "FAILED", failures, failures == 1 ? "" : "s");

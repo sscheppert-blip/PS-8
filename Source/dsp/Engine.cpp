@@ -92,16 +92,58 @@ namespace ps8::dsp
         lfo = {};
         glidedOctaves = stepOctaves;
         std::fill (std::begin (ladder), std::end (ladder), 0.0f);
+        std::fill (std::begin (inputs), std::end (inputs), 0.0f);
+        std::fill (std::begin (outputs), std::end (outputs), 0.0f);
+        trigEdge = vcoResetEdge = {};
+        trigPulseRemaining = 0;
+        decayScale = 1.0f;
+        muting = false;
+        mute = 1.0f;
+        extValue = extTarget = 0.0f;
         std::fill (std::begin (pink), std::end (pink), 0.0f);
+    }
+
+    void Engine::setPatch (const patch::Masks& newMasks) noexcept
+    {
+        masks = newMasks;
+        numPatched = 0;
+
+        for (int in = 0; in < patch::numInputs; ++in)
+        {
+            if (masks[(size_t) in] != 0)
+                patchedInputs[numPatched++] = in;
+            else
+                inputs[in] = 0.0f;
+        }
+
+        if (! isPatched (patch::trigIn))
+            trigEdge = {};
+
+        if (! isPatched (patch::vcoResetIn))
+            vcoResetEdge = {};
     }
 
     void Engine::trigger (float newVelocity, float semitones) noexcept
     {
-        velocity = std::clamp (newVelocity, 0.0f, 1.0f);
+        stepVelocity = std::clamp (newVelocity, 0.0f, 1.0f);
         stepOctaves = semitones / 12.0f;
 
         if (glideSeconds (settings.glide) < 0.001f)
             glidedOctaves = stepOctaves;
+
+        trigPulseRemaining = std::max (1, (int) (0.005 * sampleRate));
+        fireEnvelopes (stepVelocity);
+    }
+
+    void Engine::fireEnvelopes (float newVelocity) noexcept
+    {
+        velocity = std::clamp (newVelocity + inputs[patch::velocityIn], 0.0f, 1.0f);
+        muting = false;
+
+        // like the original, softer hits also decay a little faster (full velocity: the knob's time)
+        decayScale = 0.7f + 0.3f * velocity;
+        updateDecays();
+        mute = 1.0f;
 
         pitchEnv.fire();
         vcfEnv.fire();
@@ -118,6 +160,8 @@ namespace ps8::dsp
     {
         if (vca.stage != Vca::Stage::idle)
             vca.stage = Vca::Stage::kill;
+
+        muting = true;
     }
 
     float Engine::renderVca() noexcept
@@ -203,52 +247,118 @@ namespace ps8::dsp
         return out * 0.2f;
     }
 
+    float Engine::envelopeCoef (float decayKnob) const noexcept
+    {
+        return decayCoef (decaySeconds (decayKnob) * decayScale, sampleRate);
+    }
+
+    void Engine::updateDecays() noexcept
+    {
+        pitchEnv.coef = envelopeCoef (settings.pitchDecay);
+        vcfEnv.coef = envelopeCoef (settings.vcfDecay);
+        vca.coef = envelopeCoef (settings.vcaDecay);
+    }
+
     void Engine::render (float* out, int numSamples) noexcept
+    {
+        beginBlock();
+        renderSamples (out, numSamples);
+    }
+
+    void Engine::beginBlock() noexcept
     {
         const auto& p = settings;
         const auto fs = (float) sampleRate;
+        auto& b = block;
 
-        pitchEnv.coef = decayCoef (decaySeconds (p.pitchDecay), sampleRate);
-        vcfEnv.coef = decayCoef (decaySeconds (p.vcfDecay), sampleRate);
-        vca.coef = decayCoef (decaySeconds (p.vcaDecay), sampleRate);
+        updateDecays();
         vca.killCoef = decayCoef (0.004f, sampleRate);
 
-        const auto target1 = std::log2 (vcoHz (p.vco1Freq));
-        const auto target2 = std::log2 (vcoHz (p.vco2Freq));
-        const auto targetCutoff = std::log2 (cutoffHz (p.cutoff));
-        const auto eg1 = pitchEgOctaves (p.vco1Eg);
-        const auto eg2 = pitchEgOctaves (p.vco2Eg);
-        const auto egVcf = vcfEgOctaves (p.vcfEg);
+        b.target1 = std::log2 (vcoHz (p.vco1Freq));
+        b.target2 = std::log2 (vcoHz (p.vco2Freq));
+        b.targetCutoff = std::log2 (cutoffHz (p.cutoff));
+        b.eg1 = pitchEgOctaves (p.vco1Eg);
+        b.eg2 = pitchEgOctaves (p.vco2Eg);
+        b.egVcf = vcfEgOctaves (p.vcfEg);
         const auto glideTime = glideSeconds (p.glide);
-        const auto glideCoef = glideTime < 0.001f ? 1.0f : (float) (1.0 - std::exp (-1.0 / (glideTime * sampleRate)));
-        const auto stepOn1 = p.pitchTarget == PitchTarget::both ? 1.0f : 0.0f;
-        const auto stepOn2 = p.pitchTarget != PitchTarget::off ? 1.0f : 0.0f;
-        const auto lfoIncrement = p.lfoHz * invSampleRate;
+        b.glideCoef = glideTime < 0.001f ? 1.0f : (float) (1.0 - std::exp (-1.0 / (glideTime * sampleRate)));
+        b.stepOn1 = p.pitchTarget == PitchTarget::both ? 1.0f : 0.0f;
+        b.stepOn2 = p.pitchTarget != PitchTarget::off ? 1.0f : 0.0f;
+        b.lfoIncrement = p.lfoHz * invSampleRate;
         const auto depth = p.lfoDepth * p.lfoDepth;
-        const auto lfoPitch1 = p.lfoTarget == LfoTarget::pitch ? 2.0f * depth : 0.0f;
-        const auto lfoPitch2 = p.lfoTarget == LfoTarget::pitch || p.lfoTarget == LfoTarget::vco2 ? 2.0f * depth : 0.0f;
-        const auto lfoCutoff = p.lfoTarget == LfoTarget::cutoff ? 4.0f * depth : 0.0f;
-        const auto lfoFm = p.lfoTarget == LfoTarget::fm ? 2.0f * depth : 0.0f;
-        const auto lfoVolume = p.lfoTarget == LfoTarget::volume ? p.lfoDepth : 0.0f;
-        const auto targetFm = p.fmOn ? 4.0f * p.fmAmount * p.fmAmount : 0.0f;
-        const auto maxOct = std::log2 (0.45f * fs);
-        const auto maxCutoffOct = std::log2 (std::min (0.4f * fs, 40000.0f));
+        b.lfoPitch1 = p.lfoTarget == LfoTarget::pitch ? 2.0f * depth : 0.0f;
+        b.lfoPitch2 = p.lfoTarget == LfoTarget::pitch || p.lfoTarget == LfoTarget::vco2 ? 2.0f * depth : 0.0f;
+        b.lfoCutoff = p.lfoTarget == LfoTarget::cutoff ? 4.0f * depth : 0.0f;
+        b.lfoFm = p.lfoTarget == LfoTarget::fm ? 2.0f * depth : 0.0f;
+        b.lfoVolume = p.lfoTarget == LfoTarget::volume ? p.lfoDepth : 0.0f;
+        b.targetFm = p.fmOn ? 4.0f * p.fmAmount * p.fmAmount : 0.0f;
+        b.targetNoise = p.noiseLevel * p.noiseLevel;
+        b.maxOct = std::log2 (0.45f * fs);
+        b.maxCutoffOct = std::log2 (std::min (0.4f * fs, 40000.0f));
+    }
+
+    void Engine::renderSamples (float* out, int numSamples) noexcept
+    {
+        using namespace patch;
+        const auto& p = settings;
+        const auto& b = block;
         const auto c = smoothCoef;
+        const auto extStep = (extTarget - extValue) / (float) std::max (1, numSamples);
+
+        auto cv = [this] (Input in) { return inputs[in]; };
+        auto unit = [] (float v) { return std::clamp (v, 0.0f, 1.0f); };
+        auto squared = [] (float v) { return v * v; };
 
         for (int i = 0; i < numSamples; ++i)
         {
+            // cables carry the previous sample's outputs, so feedback patches work
+            for (int k = 0; k < numPatched; ++k)
+            {
+                const auto in = patchedInputs[k];
+                float sum = 0.0f;
+
+                for (int o = 0; o < numOutputs; ++o)
+                    if ((masks[(size_t) in] >> o) & 1u)
+                        sum += outputs[o];
+
+                inputs[in] = sum;
+            }
+
+            if (numPatched > 0)
+            {
+                if (isPatched (trigIn) && trigEdge.process (cv (trigIn)))
+                    fireEnvelopes (stepVelocity);
+
+                if (isPatched (vcoDecayIn))
+                    pitchEnv.coef = envelopeCoef (unit (p.pitchDecay + cv (vcoDecayIn)));
+
+                if (isPatched (vcfDecayIn))
+                    vcfEnv.coef = envelopeCoef (unit (p.vcfDecay + cv (vcfDecayIn)));
+
+                if (isPatched (vcaDecayIn))
+                    vca.coef = envelopeCoef (unit (p.vcaDecay + cv (vcaDecayIn)));
+
+                // VCO RST: both oscillators restart at the triangle's rising zero crossing
+                if (isPatched (vcoResetIn) && vcoResetEdge.process (cv (vcoResetIn)))
+                    osc1.phase = osc2.phase = 0.25f;
+            }
+
             const auto pe = pitchEnv.next();
             const auto fe = vcfEnv.next();
-            const auto amp = renderVca();
-            const auto mod = renderLfo (lfoIncrement);
-            const auto step = glidedOctaves += (stepOctaves - glidedOctaves) * glideCoef;
+            const auto envelope = renderVca();
+            const auto mod = renderLfo (b.lfoIncrement);
+            const auto step = glidedOctaves += (stepOctaves - glidedOctaves) * b.glideCoef;
 
-            // oscillators
-            const auto oct1 = std::min (vco1Oct.next (target1, c) + eg1 * pe + stepOn1 * step + lfoPitch1 * mod, maxOct);
-            const auto oct2 = std::min (vco2Oct.next (target2, c) + eg2 * pe + stepOn2 * step + lfoPitch2 * mod, maxOct);
+            // oscillators (VCO CV inputs: 1 V/oct)
+            const auto oct1 = std::min (vco1Oct.next (b.target1, c) + b.eg1 * pe + b.stepOn1 * step + b.lfoPitch1 * mod
+                                            + 5.0f * cv (vco1CvIn), b.maxOct);
+            const auto oct2 = std::min (vco2Oct.next (b.target2, c) + b.eg2 * pe + b.stepOn2 * step + b.lfoPitch2 * mod
+                                            + 5.0f * cv (vco2CvIn), b.maxOct);
+            const auto targetFm = ! isPatched (fmAmountIn) ? b.targetFm
+                                                           : (p.fmOn ? 4.0f * squared (unit (p.fmAmount + cv (fmAmountIn))) : 0.0f);
             const auto inc1 = std::exp2 (oct1) * invSampleRate;
             const auto v1 = shape (osc1.phase, inc1, p.vco1Square);
-            const auto inc2 = std::exp2 (oct2) * invSampleRate * (1.0f + std::max (0.0f, fm.next (targetFm, c) + lfoFm * mod) * v1);
+            const auto inc2 = std::exp2 (oct2) * invSampleRate * (1.0f + std::max (0.0f, fm.next (targetFm, c) + b.lfoFm * mod) * v1);
             const auto v2 = shape (osc2.phase, inc2, p.vco2Square);
 
             osc1.phase += inc1;
@@ -262,15 +372,22 @@ namespace ps8::dsp
                     osc2.phase = wrap (osc1.phase / inc1 * inc2);
             }
 
+            // EXT IN takes the noise slot: a cable first, then the host's audio, else the noise source
             const auto n = noise();
+            extValue += extStep;
+            const auto noiseSlot = isPatched (extIn) ? cv (extIn) : (extConnected ? extValue : n);
+            const auto targetNoise = ! isPatched (noiseLevelIn) ? b.targetNoise : squared (unit (p.noiseLevel + cv (noiseLevelIn)));
             const auto mix = v1 * level1.next (p.vco1Level * p.vco1Level, c)
                            + v2 * level2.next (p.vco2Level * p.vco2Level, c)
-                           + n * levelNoise.next (p.noiseLevel * p.noiseLevel, c);
+                           + noiseSlot * levelNoise.next (targetNoise, c);
+
+            // VCF MOD is normalled to the noise source; the noise VCF MOD knob sets its depth
+            const auto vcfMod = isPatched (vcfModIn) ? cv (vcfModIn) : n;
 
             // 4-pole ladder (zero-delay feedback, saturating input stage)
-            const auto cutoffOctave = std::clamp (cutoffOct.next (targetCutoff, c) + egVcf * fe
-                                                      + 3.0f * noiseMod.next (p.noiseVcf * p.noiseVcf, c) * n + lfoCutoff * mod,
-                                                  3.3f, maxCutoffOct);
+            const auto cutoffOctave = std::clamp (cutoffOct.next (b.targetCutoff, c) + b.egVcf * fe
+                                                      + 3.0f * noiseMod.next (p.noiseVcf * p.noiseVcf, c) * vcfMod + b.lfoCutoff * mod,
+                                                  3.3f, b.maxCutoffOct);
             const auto g = std::tan (pi * std::exp2 (cutoffOctave) * invSampleRate);
             const auto G = g / (1.0f + g);
             const auto k = res.next (4.1f * p.resonance, c);
@@ -296,8 +413,26 @@ namespace ps8::dsp
             const auto dg = driveGain.next (1.0f + 9.0f * p.drive * p.drive, c);
             const auto driven = std::tanh (filtered * dg) / std::sqrt (dg);
 
-            const auto tremolo = 1.0f - lfoVolume * (0.5f - 0.5f * mod);
-            out[i] = outputGain * driven * amp * tremolo * vol.next (p.volume * p.volume, c);
+            // VCA CV is normalled to the VCA envelope; SCRAM also fades a cable-driven VCA
+            if (muting)
+                mute *= vca.killCoef;
+
+            const auto amp = isPatched (vcaCvIn) ? unit (cv (vcaCvIn)) * mute : envelope;
+            const auto tremolo = 1.0f - b.lfoVolume * (0.5f - 0.5f * mod);
+            const auto vcaSignal = driven * amp * tremolo;
+            out[i] = outputGain * vcaSignal * vol.next (p.volume * p.volume, c);
+
+            // patchbay outputs
+            outputs[trigOut] = trigPulseRemaining > 0 ? 1.0f : 0.0f;
+            trigPulseRemaining = std::max (0, trigPulseRemaining - 1);
+            outputs[velocityOut] = stepVelocity;
+            outputs[pitchOut] = stepOctaves / 5.0f;
+            outputs[vco1Out] = v1;
+            outputs[vco2Out] = v2;
+            outputs[vcoEgOut] = pe;
+            outputs[vcfEgOut] = fe;
+            outputs[vcaOut] = vcaSignal;
+            outputs[vcaEgOut] = envelope;
         }
     }
 }

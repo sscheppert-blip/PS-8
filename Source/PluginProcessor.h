@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include <clap-juce-extensions/clap-juce-extensions.h>
 
+#include "Presets.h"
 #include "dsp/Engine.h"
 #include "dsp/Sequencer.h"
 
@@ -64,6 +65,25 @@ public:
     };
 
     Display& getDisplay() noexcept { return display; }
+
+    //==============================================================================
+    // Patchbay (message thread). Not automatable; saved with the plugin state.
+    bool isConnected (ps8::patch::Output, ps8::patch::Input) const noexcept;
+    void connect (ps8::patch::Output, ps8::patch::Input) noexcept;
+    void disconnect (ps8::patch::Output, ps8::patch::Input) noexcept;
+    void clearPatch() noexcept;
+    ps8::patch::Masks getPatch() const noexcept;
+    void setPatch (const ps8::patch::Masks&) noexcept;
+    // changes whenever the patch changes (also when a saved state is loaded)
+    uint32_t getPatchVersion() const noexcept { return patchVersion.load(); }
+
+    // Presets; the plugin state also remembers the preset's name
+    ps8::Presets& getPresets() noexcept { return *presets; }
+    // changes whenever a saved state is loaded
+    uint32_t getStateVersion() const noexcept { return stateVersion.load(); }
+
+    static juce::String patchToString (const ps8::patch::Masks&);
+    static ps8::patch::Masks patchFromString (const juce::String&);
     double getCpuLoad() const { return loadMeasurer.getLoadAsProportion(); }
 
 private:
@@ -71,6 +91,10 @@ private:
     void playStep (int step, float velocityScale) noexcept;
     double lfoBeats() const noexcept;
     void handleMidi (const juce::MidiMessage&) noexcept;
+    bool readExtInput (juce::AudioBuffer<float>&, int numSamples);
+
+    static constexpr const char* patchProperty = "patch";
+    static constexpr const char* presetProperty = "preset";
 
     juce::AudioProcessorValueTreeState state;
 
@@ -91,8 +115,14 @@ private:
     ps8::seq::Sequencer sequencer;
     bool hostWasRunning = false;
 
+    std::array<std::atomic<ps8::patch::Mask>, ps8::patch::numInputs> patchMasks {};
+    std::atomic<uint32_t> patchVersion { 0 }, stateVersion { 0 };
+    std::unique_ptr<ps8::Presets> presets;
+    bool editorCreated = false;
+    ps8::patch::EdgeDetector runGate, clockEdge, resetEdge;
+
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
-    juce::AudioBuffer<float> zeroBuffer, oversampledBuffer;
+    juce::AudioBuffer<float> zeroBuffer, oversampledBuffer, extBuffer;
     int oversamplingFactor = 1;
     int maxChunk = 512;
 

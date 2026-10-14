@@ -8,7 +8,8 @@ namespace
 }
 
 PS8AudioProcessor::PS8AudioProcessor()
-    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)
+                                       .withInput ("Ext In", juce::AudioChannelSet::stereo(), false)),
       state (*this, nullptr, "PS8", ps8::params::createLayout())
 {
     auto raw = [this] (const juce::String& paramId)
@@ -35,6 +36,8 @@ PS8AudioProcessor::PS8AudioProcessor()
     refs.lfoSync = raw (id::lfoSync);       refs.lfoShape = raw (id::lfoShape);
     refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
 
+    presets = std::make_unique<ps8::Presets> (*this);
+
     for (int i = 0; i < ps8::seq::maxSteps; ++i)
     {
         refs.pitch[(size_t) i] = raw (id::stepPitch (i));
@@ -58,18 +61,26 @@ void PS8AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     zeroBuffer.setSize (1, maxChunk);
     zeroBuffer.clear();
     oversampledBuffer.setSize (1, maxChunk * oversamplingFactor);
+    extBuffer.setSize (1, maxChunk);
 
     engine.setSettings (readSettings ((double) refs.tempo->load()));
     engine.prepare (sampleRate * oversamplingFactor);
     sequencer.prepare (sampleRate);
     hostWasRunning = false;
+    runGate = clockEdge = resetEdge = {};
     loadMeasurer.reset (sampleRate, samplesPerBlock);
 }
 
 bool PS8AudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
     const auto& out = layouts.getMainOutputChannelSet();
-    return out == juce::AudioChannelSet::mono() || out == juce::AudioChannelSet::stereo();
+    const auto& in = layouts.getMainInputChannelSet();
+    auto monoOrStereo = [] (const juce::AudioChannelSet& set)
+    {
+        return set == juce::AudioChannelSet::mono() || set == juce::AudioChannelSet::stereo();
+    };
+
+    return monoOrStereo (out) && (in.isDisabled() || monoOrStereo (in));
 }
 
 //==============================================================================
@@ -146,8 +157,34 @@ void PS8AudioProcessor::handleMidi (const juce::MidiMessage& message) noexcept
     }
 }
 
+bool PS8AudioProcessor::readExtInput (juce::AudioBuffer<float>& buffer, int numSamples)
+{
+    auto* bus = getBus (true, 0);
+
+    if (bus == nullptr || ! bus->isEnabled() || bus->getNumberOfChannels() == 0)
+        return false;
+
+    // the input shares its channels with the output, so copy it before rendering
+    const auto input = getBusBuffer (buffer, true, 0);
+    const auto channels = input.getNumChannels();
+
+    if (extBuffer.getNumSamples() < numSamples)
+        extBuffer.setSize (1, numSamples, false, false, true);
+
+    extBuffer.copyFrom (0, 0, input, 0, 0, numSamples);
+
+    for (int c = 1; c < channels; ++c)
+        extBuffer.addFrom (0, 0, input, c, 0, numSamples);
+
+    if (channels > 1)
+        extBuffer.applyGain (0, 0, numSamples, 1.0f / (float) channels);
+
+    return true;
+}
+
 void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
+    namespace patch = ps8::patch;
     juce::ScopedNoDenormals noDenormals;
     const auto numSamples = buffer.getNumSamples();
     juce::AudioProcessLoadMeasurer::ScopedTimer timer (loadMeasurer, numSamples);
@@ -155,9 +192,9 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     juce::Optional<double> hostBpm, hostPpq;
     bool hostPlaying = false;
 
-    if (auto* playHead = getPlayHead())
+    if (auto* head = getPlayHead())
     {
-        if (const auto position = playHead->getPosition())
+        if (const auto position = head->getPosition())
         {
             hostBpm = position->getBpm();
             hostPpq = position->getPpqPosition();
@@ -168,12 +205,34 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     if (oversampledBuffer.getNumSamples() < numSamples * oversamplingFactor)
         oversampledBuffer.setSize (1, numSamples * oversamplingFactor, false, false, true);
 
-    // sequencer ticks of this block
+    const auto hasExt = readExtInput (buffer, numSamples);
+    engine.setExtConnected (hasExt);
+
+    // patchbay
+    {
+        patch::Masks masks;
+
+        for (size_t i = 0; i < masks.size(); ++i)
+            masks[i] = patchMasks[i].load (std::memory_order_relaxed);
+
+        engine.setPatch (masks);
+    }
+
+    const auto clockPatched = engine.isPatched (patch::advClockIn);
+    const auto runPatched = engine.isPatched (patch::runIn);
+    const auto resetPatched = engine.isPatched (patch::resetIn);
+    const auto tempoPatched = engine.isPatched (patch::tempoIn);
+
+    if (! clockPatched) clockEdge = {};
+    if (! runPatched)   runGate = {};
+    if (! resetPatched) resetEdge = {};
+
+    // sequencer ticks of this block (host clock)
     constexpr int maxTicks = 64;
     std::array<ps8::seq::Tick, maxTicks> ticks;
     int numTicks = 0;
 
-    const auto run = refs.run->load() > 0.5f;
+    auto runSwitch = refs.run->load() > 0.5f;
     const auto rate = (ps8::seq::Rate) juce::jlimit (0, 5, juce::roundToInt (refs.rate->load()));
     const auto followHost = refs.hostClock->load() > 0.5f && hostBpm.hasValue() && hostPpq.hasValue();
     const auto bpm = followHost ? juce::jlimit (20.0, 999.0, *hostBpm) : (double) refs.tempo->load();
@@ -182,24 +241,17 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     if (followHost)
     {
-        const auto hostRunning = run && hostPlaying;
+        // a cable in ADV/CLOCK replaces the clock
+        const auto hostRunning = runSwitch && hostPlaying && ! clockPatched;
 
         if (hostRunning)
             numTicks = sequencer.runHost (*hostPpq, bpm, numSamples, rate, ! hostWasRunning, ticks.data(), maxTicks);
 
         hostWasRunning = hostRunning;
-        display.running = hostRunning;
     }
     else
     {
         hostWasRunning = false;
-
-        if (run)
-            numTicks = sequencer.runInternal (numSamples, bpm, rate, ticks.data(), maxTicks);
-        else
-            sequencer.stop();
-
-        display.running = run;
     }
 
     display.bpm = (float) bpm;
@@ -218,7 +270,9 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     {
         engine.panic();
         sequencer.reset();
+        sequencer.stop();
         numTicks = 0;
+        runSwitch = false;
     }
 
     if (resetRequest.exchange (false))
@@ -230,41 +284,66 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     if (triggerRequest.exchange (false))
         playStep (juce::jmax (0, sequencer.current()), 1.0f);
 
-    // render, playing ticks and MIDI notes at their sample positions
+    // render one host sample at a time, so cables into the sequencer act on the next sample
+    engine.beginBlock();
     auto* oversampled = oversampledBuffer.getWritePointer (0);
-    int rendered = 0;
-
-    auto renderUpTo = [&] (int end)
-    {
-        if (end > rendered)
-        {
-            engine.render (oversampled + rendered * oversamplingFactor, (end - rendered) * oversamplingFactor);
-            rendered = end;
-        }
-    };
-
+    const auto* ext = hasExt ? extBuffer.getReadPointer (0) : nullptr;
+    auto event = midi.cbegin();
     int nextTick = 0;
+    bool running = false;
+    auto shownBpm = bpm;
 
-    auto ticksUpTo = [&] (int position)
+    for (int i = 0; i < numSamples; ++i)
     {
-        for (; nextTick < numTicks && ticks[(size_t) nextTick].position <= position; ++nextTick)
+        if (resetPatched && resetEdge.process (engine.input (patch::resetIn)))
+            sequencer.reset();
+
+        if (runPatched)
+            runGate.process (engine.input (patch::runIn));
+
+        const auto clockEdgeNow = clockPatched && clockEdge.process (engine.input (patch::advClockIn));
+        running = runSwitch && (! runPatched || runGate.high) && (! followHost || hostPlaying);
+
+        if (clockPatched)
         {
-            renderUpTo (ticks[(size_t) nextTick].position);
-            playStep (ticks[(size_t) nextTick].step, 1.0f);
+            if (clockEdgeNow && running)
+                playStep (sequencer.advance(), 1.0f);
         }
-    };
+        else if (followHost)
+        {
+            for (; nextTick < numTicks && ticks[(size_t) nextTick].position <= i; ++nextTick)
+                if (running)
+                    playStep (ticks[(size_t) nextTick].step, 1.0f);
+        }
+        else if (running)
+        {
+            // TEMPO: 1 V doubles the tempo
+            const auto sampleBpm = tempoPatched ? juce::jlimit (1.0, 2000.0, bpm * std::exp2 (5.0 * engine.input (patch::tempoIn)))
+                                                : bpm;
+            shownBpm = sampleBpm;
 
-    for (const auto metadata : midi)
-    {
-        const auto position = juce::jlimit (0, juce::jmax (0, numSamples - 1), metadata.samplePosition);
-        ticksUpTo (position);
-        renderUpTo (position);
-        handleMidi (metadata.getMessage());
+            if (const auto step = sequencer.clockInternal (sampleBpm, rate); step >= 0)
+                playStep (step, 1.0f);
+        }
+        else
+        {
+            sequencer.stop();
+        }
+
+        for (; event != midi.cend() && juce::jlimit (0, juce::jmax (0, numSamples - 1), (*event).samplePosition) <= i; ++event)
+            handleMidi ((*event).getMessage());
+
+        if (ext != nullptr)
+            engine.setExtSample (ext[i]);
+
+        engine.renderSamples (oversampled + i * oversamplingFactor, oversamplingFactor);
     }
 
-    ticksUpTo (numSamples);
-    renderUpTo (numSamples);
     midi.clear();
+    display.running = running;
+
+    if (tempoPatched && ! followHost)
+        display.bpm = (float) juce::jmin (999.0, shownBpm);
 
     // back to the host rate
     auto output = getBusBuffer (buffer, false, 0);
@@ -298,21 +377,123 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 }
 
 //==============================================================================
+bool PS8AudioProcessor::isConnected (ps8::patch::Output o, ps8::patch::Input in) const noexcept
+{
+    return (patchMasks[(size_t) in].load() >> o) & 1u;
+}
+
+void PS8AudioProcessor::connect (ps8::patch::Output o, ps8::patch::Input in) noexcept
+{
+    patchMasks[(size_t) in].fetch_or ((ps8::patch::Mask) (1u << o));
+    ++patchVersion;
+}
+
+void PS8AudioProcessor::disconnect (ps8::patch::Output o, ps8::patch::Input in) noexcept
+{
+    patchMasks[(size_t) in].fetch_and ((ps8::patch::Mask) ~(1u << o));
+    ++patchVersion;
+}
+
+void PS8AudioProcessor::clearPatch() noexcept
+{
+    setPatch ({});
+}
+
+ps8::patch::Masks PS8AudioProcessor::getPatch() const noexcept
+{
+    ps8::patch::Masks masks;
+
+    for (size_t i = 0; i < masks.size(); ++i)
+        masks[i] = patchMasks[i].load();
+
+    return masks;
+}
+
+void PS8AudioProcessor::setPatch (const ps8::patch::Masks& masks) noexcept
+{
+    for (size_t i = 0; i < masks.size(); ++i)
+        patchMasks[i] = masks[i];
+
+    ++patchVersion;
+}
+
+// "vcaEg>tempo vco2>vcfMod"
+juce::String PS8AudioProcessor::patchToString (const ps8::patch::Masks& masks)
+{
+    juce::StringArray cables;
+
+    for (int in = 0; in < ps8::patch::numInputs; ++in)
+        for (int o = 0; o < ps8::patch::numOutputs; ++o)
+            if ((masks[(size_t) in] >> o) & 1u)
+                cables.add (juce::String (ps8::patch::outputIds[o]) + ">" + ps8::patch::inputIds[in]);
+
+    return cables.joinIntoString (" ");
+}
+
+ps8::patch::Masks PS8AudioProcessor::patchFromString (const juce::String& text)
+{
+    ps8::patch::Masks masks {};
+
+    auto indexOf = [] (const auto& ids, int count, const juce::String& name)
+    {
+        for (int i = 0; i < count; ++i)
+            if (name == ids[i])
+                return i;
+        return -1;
+    };
+
+    for (const auto& cable : juce::StringArray::fromTokens (text, " ", {}))
+    {
+        const auto o = indexOf (ps8::patch::outputIds, ps8::patch::numOutputs, cable.upToFirstOccurrenceOf (">", false, false));
+        const auto in = indexOf (ps8::patch::inputIds, ps8::patch::numInputs, cable.fromFirstOccurrenceOf (">", false, false));
+
+        if (o >= 0 && in >= 0)
+            masks[(size_t) in] |= (ps8::patch::Mask) (1u << o);
+    }
+
+    return masks;
+}
+
+//==============================================================================
 void PS8AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (const auto xml = state.copyState().createXml())
+    auto tree = state.copyState();
+    tree.setProperty (patchProperty, patchToString (getPatch()), nullptr);
+    tree.setProperty (presetProperty, presets->getStateName(), nullptr);
+
+    if (const auto xml = tree.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
 void PS8AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
+    // The standalone app restores its last session before it opens the window; PS-8 starts with Init
+    // instead. (Its "Load state" menu still works later.)
+    if (wrapperType == wrapperType_Standalone && ! editorCreated)
+        return;
+
     if (const auto xml = getXmlFromBinary (data, sizeInBytes))
+    {
         if (xml->hasTagName (state.state.getType()))
-            state.replaceState (juce::ValueTree::fromXml (*xml));
+        {
+            auto tree = juce::ValueTree::fromXml (*xml);
+            setPatch (patchFromString (tree.getProperty (patchProperty).toString()));
+
+            const auto preset = tree.getProperty (presetProperty).toString();
+            const auto isUser = preset.startsWith ("user:");
+            presets->setStateName (isUser ? preset.substring (5) : preset, ! isUser);
+
+            tree.removeProperty (patchProperty, nullptr);
+            tree.removeProperty (presetProperty, nullptr);
+            state.replaceState (tree);
+            ++stateVersion;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* PS8AudioProcessor::createEditor()
 {
+    editorCreated = true;
     return new PS8AudioProcessorEditor (*this);
 }
 
