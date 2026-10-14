@@ -27,6 +27,10 @@ Released versions are under **Releases**: AU (macOS), VST3 and CLAP for macOS, W
 Installation is explained in the manual ([English](docs/Manual.md#1-installation) ·
 [Deutsch](docs/Handbuch.md#1-installation)).
 
+**macOS:** the plugins are not notarized by Apple yet, so macOS may block them. The manual explains
+how to unblock any downloaded plugin – and PS-8 in one go
+([English](docs/Manual.md#unblocking-plugins-on-macos) · [Deutsch](docs/Handbuch.md#plugins-auf-macos-freigeben)).
+
 ## Credits
 
 Idea, direction, ears and the "nah, take the red caps off" calls: [sscheppert-blip](https://github.com/sscheppert-blip).

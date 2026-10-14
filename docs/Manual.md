@@ -47,6 +47,37 @@ Ready-made packages are under **Releases** in the repository.
 Then let your DAW rescan its plugins. PS-8 shows up as an instrument by the manufacturer
 **sscheppert-blip**.
 
+### Unblocking plugins on macOS
+
+Every file you download gets a hidden "quarantine" mark from macOS. For plugins that are not
+notarized by Apple – like PS-8 and many free or open-source plugins – this can mean:
+
+- a message that the plugin "cannot be opened" or "is damaged",
+- or your DAW silently skips it during the scan.
+
+**The general way – works for any plugin:** remove the mark once in the **Terminal**
+(Applications → Utilities → Terminal), then restart your DAW:
+
+```bash
+xattr -dr com.apple.quarantine "/path/to/the/plugin"
+```
+
+Tip: type `xattr -dr com.apple.quarantine ` (with the space at the end), drag the plugin file from the
+Finder into the Terminal window – the path is filled in – and press Return. `-d` deletes the mark,
+`-r` includes everything inside the plugin bundle. `xattr -l "/path/to/the/plugin"` shows whether a
+mark is still there.
+
+**For PS-8 – all three formats at once:**
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap
+```
+
+If you only installed some of the formats, the command reports the missing ones – that's fine, the
+others are unblocked anyway.
+
+Only do this for plugins from sources you trust: the mark is macOS's way of asking "are you sure?".
+
 ---
 
 ## 2. Getting started
@@ -378,7 +409,8 @@ The "Steps 1-8 / 9-16" view is saved with the project but cannot be automated.
 ## 12. Troubleshooting
 
 **PS-8 doesn't show up in the DAW** – check the plugin folder (see Installation) and rescan in your DAW.
-For AU on the Mac, restarting the DAW sometimes helps.
+On the Mac, unblock the plugin (see [Unblocking plugins on macOS](#unblocking-plugins-on-macos)), then
+restart the DAW.
 
 **No sound** – Is the DAW playing (with HOST)? Is RUN on? Are the LEVEL knobs and VOLUME up? Are the
 steps green? Is VELOCITY above 0? Was SCRAM pressed (then switch RUN back on)?

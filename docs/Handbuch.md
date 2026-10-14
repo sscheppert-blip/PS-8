@@ -48,6 +48,39 @@ Fertige Pakete liegen unter **Releases** im Repository.
 Danach in der DAW die Plugins neu scannen lassen. PS-8 erscheint unter dem Hersteller
 **sscheppert-blip** als Instrument.
 
+### Plugins auf macOS freigeben
+
+macOS versieht jede heruntergeladene Datei mit einer unsichtbaren „Quarantäne“-Markierung. Bei
+Plugins, die nicht von Apple notarisiert sind – wie PS-8 und viele kostenlose oder Open-Source-Plugins –
+kann das bedeuten:
+
+- eine Meldung, das Plugin „kann nicht geöffnet werden“ oder „ist beschädigt“,
+- oder die DAW überspringt es beim Scannen einfach.
+
+**Der allgemeine Weg – klappt mit jedem Plugin:** die Markierung einmal im **Terminal** entfernen
+(Programme → Dienstprogramme → Terminal) und danach die DAW neu starten:
+
+```bash
+xattr -dr com.apple.quarantine "/Pfad/zum/Plugin"
+```
+
+Tipp: `xattr -dr com.apple.quarantine ` eintippen (mit Leerzeichen am Ende), die Plugin-Datei aus dem
+Finder ins Terminal-Fenster ziehen – der Pfad wird eingefügt – und Return drücken. `-d` löscht die
+Markierung, `-r` nimmt alles im Plugin-Paket mit. `xattr -l "/Pfad/zum/Plugin"` zeigt, ob noch eine
+Markierung da ist.
+
+**Für PS-8 – alle drei Formate auf einmal:**
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap
+```
+
+Wer nur einzelne Formate installiert hat, bekommt für die fehlenden eine Meldung – das ist egal, die
+anderen werden trotzdem freigegeben.
+
+Nur bei Plugins aus Quellen machen, denen du vertraust: Die Markierung ist macOS' Art zu fragen
+„Bist du sicher?“.
+
 ---
 
 ## 2. Erste Schritte
@@ -380,7 +413,8 @@ Die Anzeige „Steps 1-8 / 9-16“ wird mit dem Projekt gespeichert, ist aber ni
 ## 12. Probleme lösen
 
 **PS-8 taucht in der DAW nicht auf** – Plugin-Ordner prüfen (siehe Installation) und in der DAW neu
-scannen. Bei AU auf dem Mac hilft manchmal ein Neustart der DAW.
+scannen. Auf dem Mac das Plugin freigeben (siehe [Plugins auf macOS freigeben](#plugins-auf-macos-freigeben))
+und die DAW neu starten.
 
 **Kein Ton** – Läuft die DAW (bei HOST)? Ist RUN an? Stehen LEVEL-Regler und VOLUME auf? Sind die
 Steps grün? Steht VELOCITY über 0? Wurde SCRAM gedrückt (dann RUN wieder einschalten)?
