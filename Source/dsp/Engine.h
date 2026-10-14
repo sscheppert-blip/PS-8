@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 #include "Patch.h"
@@ -54,7 +55,7 @@ namespace ps8::dsp
 
         // Cables, one output mask per input (see Patch.h)
         void setPatch (const patch::Masks& masks) noexcept;
-        bool isPatched (patch::Input in) const noexcept { return masks[(size_t) in] != 0; }
+        bool isPatched (patch::Input in) const noexcept { return masks[(std::size_t) in] != 0; }
 
         // Audio for EXT IN while no cable is plugged in; without it the noise source plays.
         void setExtConnected (bool connected) noexcept { extConnected = connected; }
@@ -78,8 +79,8 @@ namespace ps8::dsp
         void renderSamples (float* out, int numSamples) noexcept;
 
         // Patched input signal at the last rendered sample (sum of its cables, 0 without one)
-        float input (patch::Input in) const noexcept { return inputs[(size_t) in]; }
-        float output (patch::Output o) const noexcept { return outputs[(size_t) o]; }
+        float input (patch::Input in) const noexcept { return inputs[(std::size_t) in]; }
+        float output (patch::Output o) const noexcept { return outputs[(std::size_t) o]; }
 
         bool isSilent() const noexcept { return vca.value < 1.0e-5f && vca.stage == Vca::Stage::idle; }
 

@@ -110,7 +110,7 @@ namespace ps8::dsp
 
         for (int in = 0; in < patch::numInputs; ++in)
         {
-            if (masks[(size_t) in] != 0)
+            if (masks[(std::size_t) in] != 0)
                 patchedInputs[numPatched++] = in;
             else
                 inputs[in] = 0.0f;
@@ -318,7 +318,7 @@ namespace ps8::dsp
                 float sum = 0.0f;
 
                 for (int o = 0; o < numOutputs; ++o)
-                    if ((masks[(size_t) in] >> o) & 1u)
+                    if ((masks[(std::size_t) in] >> o) & 1u)
                         sum += outputs[o];
 
                 inputs[in] = sum;
