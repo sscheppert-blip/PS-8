@@ -1,0 +1,322 @@
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+#include "Parameters.h"
+
+namespace
+{
+    namespace id = ps8::params::id;
+}
+
+PS8AudioProcessor::PS8AudioProcessor()
+    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
+      state (*this, nullptr, "PS8", ps8::params::createLayout())
+{
+    auto raw = [this] (const juce::String& paramId)
+    {
+        auto* value = state.getRawParameterValue (paramId);
+        jassert (value != nullptr);
+        return value;
+    };
+
+    refs.vco1Freq = raw (id::vco1Freq);     refs.vco1Eg = raw (id::vco1Eg);
+    refs.vco1Square = raw (id::vco1Square); refs.vco1Level = raw (id::vco1Level);
+    refs.vco2Freq = raw (id::vco2Freq);     refs.vco2Eg = raw (id::vco2Eg);
+    refs.vco2Square = raw (id::vco2Square); refs.vco2Level = raw (id::vco2Level);
+    refs.fmAmount = raw (id::fmAmount);     refs.fmOn = raw (id::fmOn);         refs.hardSync = raw (id::hardSync);
+    refs.noiseLevel = raw (id::noiseLevel); refs.noisePink = raw (id::noisePink); refs.noiseVcf = raw (id::noiseVcf);
+    refs.cutoff = raw (id::cutoff);         refs.resonance = raw (id::resonance);
+    refs.vcfEg = raw (id::vcfEg);           refs.highPass = raw (id::highPass);
+    refs.pitchDecay = raw (id::pitchDecay); refs.vcfDecay = raw (id::vcfDecay); refs.vcaDecay = raw (id::vcaDecay);
+    refs.vcaSlow = raw (id::vcaSlow);       refs.drive = raw (id::drive);       refs.volume = raw (id::volume);
+    refs.tempo = raw (id::tempo);           refs.run = raw (id::run);           refs.hostClock = raw (id::hostClock);
+    refs.rate = raw (id::rate);             refs.pitchTarget = raw (id::pitchTarget);
+    refs.length = raw (id::length);         refs.scale = raw (id::scale);       refs.glide = raw (id::glide);
+    refs.lfoRate = raw (id::lfoRate);       refs.lfoDivision = raw (id::lfoDivision);
+    refs.lfoSync = raw (id::lfoSync);       refs.lfoShape = raw (id::lfoShape);
+    refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+    {
+        refs.pitch[(size_t) i] = raw (id::stepPitch (i));
+        refs.velocity[(size_t) i] = raw (id::stepVelocity (i));
+        refs.on[(size_t) i] = raw (id::stepOn (i));
+    }
+}
+
+void PS8AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+{
+    // The oscillators, FM and the ladder run oversampled: 4x up to 48 kHz, 2x up to 96 kHz.
+    const auto factorExponent = sampleRate <= 50000.0 ? 2 : (sampleRate <= 100000.0 ? 1 : 0);
+    oversamplingFactor = 1 << factorExponent;
+    maxChunk = juce::jmax (samplesPerBlock, 32);
+
+    oversampler = std::make_unique<juce::dsp::Oversampling<float>> (
+        1, (size_t) factorExponent, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, true);
+    oversampler->initProcessing ((size_t) maxChunk);
+    setLatencySamples (juce::roundToInt (oversampler->getLatencyInSamples()));
+
+    zeroBuffer.setSize (1, maxChunk);
+    zeroBuffer.clear();
+    oversampledBuffer.setSize (1, maxChunk * oversamplingFactor);
+
+    engine.setSettings (readSettings ((double) refs.tempo->load()));
+    engine.prepare (sampleRate * oversamplingFactor);
+    sequencer.prepare (sampleRate);
+    hostWasRunning = false;
+    loadMeasurer.reset (sampleRate, samplesPerBlock);
+}
+
+bool PS8AudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    const auto& out = layouts.getMainOutputChannelSet();
+    return out == juce::AudioChannelSet::mono() || out == juce::AudioChannelSet::stereo();
+}
+
+//==============================================================================
+ps8::dsp::Settings PS8AudioProcessor::readSettings (double bpm) const noexcept
+{
+    auto on = [] (const std::atomic<float>* p) { return p->load() > 0.5f; };
+
+    ps8::dsp::Settings s;
+    s.vco1Freq = refs.vco1Freq->load();     s.vco1Eg = refs.vco1Eg->load();
+    s.vco1Square = on (refs.vco1Square);    s.vco1Level = refs.vco1Level->load();
+    s.vco2Freq = refs.vco2Freq->load();     s.vco2Eg = refs.vco2Eg->load();
+    s.vco2Square = on (refs.vco2Square);    s.vco2Level = refs.vco2Level->load();
+    s.fmAmount = refs.fmAmount->load();     s.fmOn = on (refs.fmOn);            s.hardSync = on (refs.hardSync);
+    s.noiseLevel = refs.noiseLevel->load(); s.noisePink = on (refs.noisePink);  s.noiseVcf = refs.noiseVcf->load();
+    s.cutoff = refs.cutoff->load();         s.resonance = refs.resonance->load();
+    s.vcfEg = refs.vcfEg->load();           s.highPass = on (refs.highPass);
+    s.pitchDecay = refs.pitchDecay->load(); s.vcfDecay = refs.vcfDecay->load(); s.vcaDecay = refs.vcaDecay->load();
+    s.vcaSlowAttack = on (refs.vcaSlow);    s.drive = refs.drive->load();       s.volume = refs.volume->load();
+    s.pitchTarget = (ps8::dsp::PitchTarget) juce::jlimit (0, 2, juce::roundToInt (refs.pitchTarget->load()));
+    s.glide = refs.glide->load();
+    s.lfoDepth = refs.lfoDepth->load();
+    s.lfoShape = (ps8::dsp::LfoShape) juce::jlimit (0, 4, juce::roundToInt (refs.lfoShape->load()));
+    s.lfoTarget = (ps8::dsp::LfoTarget) juce::jlimit (0, 4, juce::roundToInt (refs.lfoTarget->load()));
+    s.lfoHz = on (refs.lfoSync) ? (float) (bpm / 60.0 / lfoBeats())
+                                : ps8::dsp::lfoHz (refs.lfoRate->load());
+    return s;
+}
+
+double PS8AudioProcessor::lfoBeats() const noexcept
+{
+    const auto index = juce::jlimit (0, (int) std::size (ps8::params::lfoDivisionBeats) - 1,
+                                     juce::roundToInt (refs.lfoDivision->load()));
+    return ps8::params::lfoDivisionBeats[(size_t) index];
+}
+
+void PS8AudioProcessor::playStep (int step, float velocityScale) noexcept
+{
+    const auto i = (size_t) step;
+    display.step = step;
+
+    if (refs.on[i]->load() > 0.5f)
+    {
+        const auto scale = (ps8::seq::Scale) juce::jlimit (0, 4, juce::roundToInt (refs.scale->load()));
+        const auto semitones = ps8::seq::quantise (ps8::dsp::stepSemitones (refs.pitch[i]->load()), scale);
+        engine.trigger (refs.velocity[i]->load() * velocityScale, semitones);
+    }
+}
+
+void PS8AudioProcessor::handleMidi (const juce::MidiMessage& message) noexcept
+{
+    if (! message.isNoteOn())
+        return;
+
+    const auto note = message.getNoteNumber();
+    const auto velocity = message.getFloatVelocity();
+    ++display.midiNotes;
+
+    if (note >= firstStepNote && note < firstStepNote + ps8::seq::maxSteps)
+    {
+        sequencer.setCurrent (note - firstStepNote);
+        playStep (note - firstStepNote, velocity);
+    }
+    else if (note == advanceNote)
+    {
+        playStep (sequencer.advance(), velocity);
+    }
+    else if (note == triggerNote)
+    {
+        playStep (juce::jmax (0, sequencer.current()), velocity);
+    }
+    else if (note == resetNote)
+    {
+        sequencer.reset();
+    }
+}
+
+void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+{
+    juce::ScopedNoDenormals noDenormals;
+    const auto numSamples = buffer.getNumSamples();
+    juce::AudioProcessLoadMeasurer::ScopedTimer timer (loadMeasurer, numSamples);
+
+    juce::Optional<double> hostBpm, hostPpq;
+    bool hostPlaying = false;
+
+    if (auto* playHead = getPlayHead())
+    {
+        if (const auto position = playHead->getPosition())
+        {
+            hostBpm = position->getBpm();
+            hostPpq = position->getPpqPosition();
+            hostPlaying = position->getIsPlaying();
+        }
+    }
+
+    if (oversampledBuffer.getNumSamples() < numSamples * oversamplingFactor)
+        oversampledBuffer.setSize (1, numSamples * oversamplingFactor, false, false, true);
+
+    // sequencer ticks of this block
+    constexpr int maxTicks = 64;
+    std::array<ps8::seq::Tick, maxTicks> ticks;
+    int numTicks = 0;
+
+    const auto run = refs.run->load() > 0.5f;
+    const auto rate = (ps8::seq::Rate) juce::jlimit (0, 5, juce::roundToInt (refs.rate->load()));
+    const auto followHost = refs.hostClock->load() > 0.5f && hostBpm.hasValue() && hostPpq.hasValue();
+    const auto bpm = followHost ? juce::jlimit (20.0, 999.0, *hostBpm) : (double) refs.tempo->load();
+
+    sequencer.setLength (juce::roundToInt (refs.length->load()));
+
+    if (followHost)
+    {
+        const auto hostRunning = run && hostPlaying;
+
+        if (hostRunning)
+            numTicks = sequencer.runHost (*hostPpq, bpm, numSamples, rate, ! hostWasRunning, ticks.data(), maxTicks);
+
+        hostWasRunning = hostRunning;
+        display.running = hostRunning;
+    }
+    else
+    {
+        hostWasRunning = false;
+
+        if (run)
+            numTicks = sequencer.runInternal (numSamples, bpm, rate, ticks.data(), maxTicks);
+        else
+            sequencer.stop();
+
+        display.running = run;
+    }
+
+    display.bpm = (float) bpm;
+    display.hostLocked = followHost && hostPlaying;
+    engine.setSettings (readSettings (bpm));
+
+    // a synced LFO follows the host's beat position
+    if (refs.lfoSync->load() > 0.5f && followHost && hostPlaying)
+    {
+        const auto cycles = *hostPpq / lfoBeats();
+        engine.setLfoPhase ((float) (cycles - std::floor (cycles)));
+    }
+
+    // front panel buttons act at the start of the block
+    if (scramRequest.exchange (false))
+    {
+        engine.panic();
+        sequencer.reset();
+        numTicks = 0;
+    }
+
+    if (resetRequest.exchange (false))
+        sequencer.reset();
+
+    if (advanceRequest.exchange (false))
+        playStep (sequencer.advance(), 1.0f);
+
+    if (triggerRequest.exchange (false))
+        playStep (juce::jmax (0, sequencer.current()), 1.0f);
+
+    // render, playing ticks and MIDI notes at their sample positions
+    auto* oversampled = oversampledBuffer.getWritePointer (0);
+    int rendered = 0;
+
+    auto renderUpTo = [&] (int end)
+    {
+        if (end > rendered)
+        {
+            engine.render (oversampled + rendered * oversamplingFactor, (end - rendered) * oversamplingFactor);
+            rendered = end;
+        }
+    };
+
+    int nextTick = 0;
+
+    auto ticksUpTo = [&] (int position)
+    {
+        for (; nextTick < numTicks && ticks[(size_t) nextTick].position <= position; ++nextTick)
+        {
+            renderUpTo (ticks[(size_t) nextTick].position);
+            playStep (ticks[(size_t) nextTick].step, 1.0f);
+        }
+    };
+
+    for (const auto metadata : midi)
+    {
+        const auto position = juce::jlimit (0, juce::jmax (0, numSamples - 1), metadata.samplePosition);
+        ticksUpTo (position);
+        renderUpTo (position);
+        handleMidi (metadata.getMessage());
+    }
+
+    ticksUpTo (numSamples);
+    renderUpTo (numSamples);
+    midi.clear();
+
+    // back to the host rate
+    auto output = getBusBuffer (buffer, false, 0);
+    auto* mono = output.getWritePointer (0);
+
+    for (int start = 0; start < numSamples; start += maxChunk)
+    {
+        const auto length = juce::jmin (maxChunk, numSamples - start);
+        const auto zeros = juce::dsp::AudioBlock<float> (zeroBuffer).getSubBlock (0, (size_t) length);
+        auto up = oversampler->processSamplesUp (zeros);
+        juce::FloatVectorOperations::copy (up.getChannelPointer (0), oversampled + start * oversamplingFactor,
+                                           length * oversamplingFactor);
+
+        float* channels[] = { mono + start };
+        juce::dsp::AudioBlock<float> down (channels, 1, (size_t) length);
+        oversampler->processSamplesDown (down);
+    }
+
+    const auto blockPeak = output.getMagnitude (0, 0, numSamples);
+
+    if (blockPeak > display.peak.load())
+        display.peak = blockPeak;
+
+    display.lfoHigh = refs.lfoDepth->load() > 0.0f && engine.getLfoPhase() < 0.5f;
+
+    for (int c = 1; c < output.getNumChannels(); ++c)
+        output.copyFrom (c, 0, output, 0, 0, numSamples);
+
+    for (int c = output.getNumChannels(); c < buffer.getNumChannels(); ++c)
+        buffer.clear (c, 0, numSamples);
+}
+
+//==============================================================================
+void PS8AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+{
+    if (const auto xml = state.copyState().createXml())
+        copyXmlToBinary (*xml, destData);
+}
+
+void PS8AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+{
+    if (const auto xml = getXmlFromBinary (data, sizeInBytes))
+        if (xml->hasTagName (state.state.getType()))
+            state.replaceState (juce::ValueTree::fromXml (*xml));
+}
+
+juce::AudioProcessorEditor* PS8AudioProcessor::createEditor()
+{
+    return new PS8AudioProcessorEditor (*this);
+}
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new PS8AudioProcessor();
+}

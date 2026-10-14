@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS-8 Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Roboto+Condensed:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #1c1f1d; --note: #9aa59e; }
+  body { margin: 0; background: var(--bg); padding: 24px 16px; font-family: 'Roboto Condensed', sans-serif; }
+  svg { display: block; margin: 0 auto; width: 100%; max-width: 1200px; height: auto; user-select: none; }
+  .t { font-family: 'Roboto Condensed', sans-serif; font-weight: 700; fill: #1f2a23; letter-spacing: .06em; }
+  .st { font-family: 'Saira Stencil One', sans-serif; fill: #1f2a23; letter-spacing: .08em; }
+  .nx { font-family: 'Share Tech Mono', monospace; fill: #ff9a2e; }
+  .knob, .tog, .lampbtn, .scram { cursor: pointer; }
+  p { color: var(--note); font-size: 14px; max-width: 1200px; margin: 14px auto 0; }
+</style>
+</head>
+<body>
+<svg id="p" viewBox="0 0 1200 680" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="haz" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="28" height="28" fill="#e2b322"/><rect width="14" height="28" fill="#1b1b1b"/>
+    </pattern>
+    <pattern id="grain" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="#8ea596"/><circle cx="1" cy="2" r=".6" fill="#869c8e"/><circle cx="4" cy="5" r=".5" fill="#97ae9f"/>
+    </pattern>
+    <radialGradient id="bake" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#4a4a48"/><stop offset=".6" stop-color="#1c1c1b"/><stop offset="1" stop-color="#0d0d0d"/></radialGradient>
+    <radialGradient id="chrome" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#b9bcb8"/><stop offset="1" stop-color="#6c706c"/></radialGradient>
+    <radialGradient id="red" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ff6a55"/><stop offset=".6" stop-color="#c42318"/><stop offset="1" stop-color="#6e0f0a"/></radialGradient>
+    <radialGradient id="face" cx=".5" cy=".9" r="1"><stop offset="0" stop-color="#f4ecd2"/><stop offset="1" stop-color="#d8cdaa"/></radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="680" rx="10" fill="#5f7368"/>
+  <rect x="6" y="6" width="1188" height="668" rx="7" fill="url(#grain)"/>
+  <rect x="6" y="644" width="1188" height="30" fill="url(#haz)"/>
+  <g id="layer"></g>
+</svg>
+<p>PS-8 mockup: knobs turn with vertical drag, step lamps toggle steps, the RUN switch starts and stops, the SCRAM button cuts everything, and the red covers open with a first click.</p>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+let bpm = 132, step = -1, running = true, timer = null, level = 0, scrammed = false;
+const L = document.getElementById('layer');
+function el(tag, attrs, parent = L) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+}
+function txt(x, y, s, size, cls = 't', parent = L, anchor = 'middle') {
+  const t = el('text', { x, y, 'font-size': size, class: cls, 'text-anchor': anchor }, parent);
+  t.textContent = s;
+  return t;
+}
+function screw(x, y) {
+  el('circle', { cx: x, cy: y, r: 5, fill: 'url(#chrome)', stroke: '#4d524e', 'stroke-width': .8 });
+  el('line', { x1: x - 3.5, y1: y - 1, x2: x + 3.5, y2: y + 1, stroke: '#4d524e', 'stroke-width': 1.3 });
+}
+function plate(x, y, w, h, title) {
+  el('rect', { x: x + 2, y: y + 3, width: w, height: h, rx: 4, fill: '#4f6157', opacity: .55 });
+  el('rect', { x, y, width: w, height: h, rx: 4, fill: '#a3b8aa', stroke: '#5f7368', 'stroke-width': 1.2 });
+  el('rect', { x: x + 8, y: y + 8, width: w - 16, height: 22, fill: '#1f2a23' });
+  txt(x + w / 2, y + 24.5, title, 14, 'st').style.fill = ('#d9e3d4');
+  [[x + 8, y + h - 8], [x + w - 8, y + h - 8]].forEach(([a, b]) => screw(a, b));
+}
+
+const knobs = {};
+function knob(id, x, y, r, label, v = .5, onChange) {
+  const g = el('g', { class: 'knob' });
+  for (let i = 0; i <= 10; i++) {
+    const a = (-135 + 27 * i - 90) * Math.PI / 180;
+    const r1 = r + 5, r2 = r + (i % 5 === 0 ? 11 : 8);
+    el('line', { x1: x + r1 * Math.cos(a), y1: y + r1 * Math.sin(a), x2: x + r2 * Math.cos(a), y2: y + r2 * Math.sin(a), stroke: '#1f2a23', 'stroke-width': i % 5 === 0 ? 2 : 1.2 }, g);
+  }
+  el('circle', { cx: x + 1.5, cy: y + 3, r: r + 1, fill: '#000', opacity: .3 }, g);
+  el('circle', { cx: x, cy: y, r, fill: 'url(#bake)', stroke: '#080808', 'stroke-width': 1 }, g);
+  el('circle', { cx: x, cy: y, r: r * .62, fill: 'none', stroke: '#2e2e2c', 'stroke-width': 1 }, g);
+  const ptr = el('line', { x1: x, y1: y - r * .25, x2: x, y2: y - r + 2, stroke: '#f2efe6', 'stroke-width': 2.6, 'stroke-linecap': 'round' }, g);
+  if (label) txt(x, y + r + 24, label, 12, 't', g);
+  const k = { v, set(nv) { k.v = Math.max(0, Math.min(1, nv)); ptr.setAttribute('transform', `rotate(${-135 + 270 * k.v} ${x} ${y})`); onChange && onChange(k.v); } };
+  k.set(v);
+  let sy = 0, sv = 0;
+  g.addEventListener('pointerdown', e => { sy = e.clientY; sv = k.v; g.setPointerCapture(e.pointerId); g.onpointermove = ev => k.set(sv + (sy - ev.clientY) / 180); });
+  g.addEventListener('pointerup', () => g.onpointermove = null);
+  knobs[id] = k;
+  return k;
+}
+
+const toggles = {};
+function toggle(id, x, y, label, top, bottom, on = true, guarded = false, onChange) {
+  const g = el('g', { class: 'tog' });
+  txt(x, y - 30, top, 10, 't', g);
+  txt(x, y + 40, bottom, 10, 't', g);
+  el('rect', { x: x - 13, y: y - 21, width: 26, height: 42, rx: 3, fill: '#2a2f2b' }, g);
+  el('circle', { cx: x, cy: y, r: 9, fill: 'url(#chrome)', stroke: '#3a3d3a' }, g);
+  const lever = el('line', { x1: x, y1: y, x2: x, y2: y - 22, stroke: '#d8dbd6', 'stroke-width': 5, 'stroke-linecap': 'round' }, g);
+  const tip = el('circle', { cx: x, cy: y - 22, r: 4.2, fill: 'url(#chrome)' }, g);
+  if (label) txt(x, y + 58, label, 12, 't', g);
+  let cover = null, open = !guarded;
+  if (guarded) cover = el('rect', { x: x - 16, y: y - 26, width: 32, height: 52, rx: 4, fill: '#c42318', 'fill-opacity': .82, stroke: '#6e0f0a', 'stroke-width': 1.5 }, g);
+  const t = { on, set(s) { t.on = s; const dy = s ? -22 : 22; lever.setAttribute('y2', y + dy); tip.setAttribute('cy', y + dy); onChange && onChange(s); } };
+  t.set(on);
+  g.addEventListener('click', () => {
+    if (!open) { open = true; cover.setAttribute('y', y - 74); cover.setAttribute('height', 30); return; }
+    t.set(!t.on);
+  });
+  toggles[id] = t;
+  return t;
+}
+
+function jack(x, y, label, out) {
+  txt(x, y - 17, label, 10);
+  if (out) el('rect', { x: x - 14, y: y - 14, width: 28, height: 28, rx: 3, fill: '#1f2a23' });
+  el('circle', { cx: x, cy: y, r: 10, fill: 'url(#chrome)', stroke: '#454845' });
+  el('circle', { cx: x, cy: y, r: 4.5, fill: '#0b0b0b' });
+}
+
+function gauge(x, y, w, h, label, marks) {
+  el('rect', { x: x - 4, y: y - 4, width: w + 8, height: h + 8, rx: 6, fill: '#1f2a23' });
+  el('rect', { x, y, width: w, height: h, rx: 3, fill: 'url(#face)' });
+  const cx = x + w / 2, cy = y + h + 18, R = h - 2;
+  for (let i = 0; i <= 10; i++) {
+    const a = (-50 + 10 * i - 90) * Math.PI / 180;
+    el('line', { x1: cx + (R - 12) * Math.cos(a), y1: cy + (R - 12) * Math.sin(a), x2: cx + (R - (i % 5 ? 18 : 22)) * Math.cos(a), y2: cy + (R - (i % 5 ? 18 : 22)) * Math.sin(a), stroke: i > 7 ? '#b3261e' : '#2a2a28', 'stroke-width': i % 5 ? 1 : 1.8 });
+  }
+  marks.forEach((m, i) => { const a = (-50 + 50 * i - 90) * Math.PI / 180; txt(cx + (R - 32) * Math.cos(a), cy + (R - 32) * Math.sin(a) + 4, m, 10); });
+  txt(cx, y + h - 6, label, 11);
+  const cid = 'g' + x;
+  el('rect', { x, y, width: w, height: h, fill: 'none' }, el('clipPath', { id: cid }, L));
+  const needle = el('line', { x1: cx, y1: cy, x2: cx, y2: cy - R + 8, stroke: '#b3261e', 'stroke-width': 2, 'clip-path': `url(#${cid})` });
+  el('rect', { x, y: y + h - 2, width: w, height: 2, fill: '#1f2a23' });
+  return a => needle.setAttribute('transform', `rotate(${-50 + 100 * a} ${cx} ${cy})`);
+}
+
+function nixie(x, y, n) {
+  const ts = [];
+  for (let i = 0; i < n; i++) {
+    el('rect', { x: x + i * 34, y, width: 30, height: 50, rx: 13, fill: '#2a1a0d', stroke: '#7a6a55', 'stroke-width': 1.5 });
+    el('rect', { x: x + i * 34 + 6, y: y + 6, width: 18, height: 38, rx: 6, fill: '#3a220d', opacity: .7 });
+    ts.push(txt(x + i * 34 + 15, y + 38, '0', 32, 'nx'));
+  }
+  return s => { const str = String(s).padStart(n, ' '); ts.forEach((t, i) => t.textContent = str[i] === ' ' ? '' : str[i]); };
+}
+
+// top bar
+el('rect', { x: 20, y: 18, width: 330, height: 100, rx: 4, fill: '#1f2a23' });
+el('rect', { x: 26, y: 24, width: 318, height: 88, rx: 2, fill: 'none', stroke: '#d9e3d4', 'stroke-width': 1 });
+txt(40, 82, 'PS-8', 46, 'st', L, 'start').style.fill = ('#e2b322');
+txt(196, 60, 'PERCUSSION', 15, 'st', L, 'start').style.fill = ('#d9e3d4');
+txt(196, 80, 'SYNTHESIZER', 15, 'st', L, 'start').style.fill = ('#d9e3d4');
+txt(196, 101, 'UNIT 08 · CONTROL ROOM B', 10, 't', L, 'start').style.fill = ('#9db0a2');
+[[30, 28], [340, 28], [30, 108], [340, 108]].forEach(([a, b]) => screw(a, b));
+
+const outGauge = gauge(380, 26, 140, 82, 'OUTPUT', ['-20', '0', '+3']);
+const tempoGauge = gauge(540, 26, 140, 82, 'LOAD', ['0', '50', '100']);
+
+el('rect', { x: 706, y: 22, width: 290, height: 92, rx: 4, fill: '#1f2a23' });
+txt(770, 38, 'TEMPO BPM', 10).style.fill = ('#9db0a2');
+txt(940, 38, 'STEP', 10).style.fill = ('#9db0a2');
+const bpmNix = nixie(720, 48, 3);
+const stepNix = nixie(906, 48, 2);
+const runLamp = el('circle', { cx: 860, cy: 73, r: 9, fill: '#1e4a26', stroke: '#0c1a0e', 'stroke-width': 2 });
+txt(860, 100, 'RUN', 10).style.fill = ('#9db0a2');
+
+// SCRAM
+el('circle', { cx: 1100, cy: 68, r: 50, fill: 'url(#haz)' });
+el('circle', { cx: 1100, cy: 68, r: 38, fill: '#1b1b1b' });
+const scramG = el('g', { class: 'scram' });
+el('circle', { cx: 1102, cy: 72, r: 32, fill: '#000', opacity: .35 }, scramG);
+const scramBtn = el('circle', { cx: 1100, cy: 68, r: 31, fill: 'url(#red)', stroke: '#4a0905', 'stroke-width': 1.5 }, scramG);
+txt(1100, 74, 'SCRAM', 16, 'st', scramG).style.fill = ('#ffe9e4');
+
+// row 1 modules
+plate(20, 132, 168, 240, 'OSCILLATOR 1');
+knob('o1f', 64, 196, 22, 'FREQUENCY', .35);
+knob('o1e', 144, 196, 18, 'EG AMOUNT', .6);
+toggle('o1w', 64, 300, 'WAVE', 'SQR', 'TRI', true);
+knob('o1l', 144, 300, 18, 'LEVEL', .8);
+
+plate(196, 132, 168, 240, 'OSCILLATOR 2');
+knob('o2f', 240, 196, 22, 'FREQUENCY', .55);
+knob('o2e', 320, 196, 18, 'EG AMOUNT', .3);
+toggle('o2w', 240, 300, 'WAVE', 'SQR', 'TRI', false);
+knob('o2l', 320, 300, 18, 'LEVEL', .5);
+
+plate(372, 132, 158, 240, 'MODULATION');
+knob('fm', 451, 196, 22, 'FM 1→2 AMOUNT', .25);
+toggle('fmOn', 412, 300, 'FM', 'ON', 'OFF', false, true);
+toggle('sync', 490, 300, 'HARD SYNC', 'ON', 'OFF', false, true);
+
+plate(538, 132, 110, 240, 'NOISE');
+knob('nz', 593, 196, 20, 'LEVEL', .2);
+toggle('nzc', 593, 300, 'COLOR', 'WHITE', 'PINK', true);
+
+plate(656, 132, 200, 240, 'FILTER');
+knob('cut', 706, 196, 24, 'CUTOFF', .45);
+knob('res', 806, 196, 20, 'RESONANCE', .55);
+knob('vfe', 706, 300, 18, 'EG AMOUNT', .7);
+toggle('mode', 806, 300, 'MODE', 'LOW', 'HIGH', true);
+
+plate(864, 132, 210, 240, 'DECAY');
+knob('dp', 902, 196, 18, 'PITCH', .25);
+knob('df', 969, 196, 18, 'FILTER', .4);
+knob('da', 1036, 196, 18, 'VCA', .5);
+toggle('atk', 935, 300, 'VCA ATTACK', 'FAST', 'SLOW', true);
+knob('drv', 1020, 300, 18, 'DRIVE', .35);
+
+plate(1082, 132, 98, 240, 'OUTPUT');
+knob('vol', 1131, 200, 24, 'VOLUME', .7);
+const clip = el('circle', { cx: 1131, cy: 296, r: 11, fill: '#4a1410', stroke: '#1a0605', 'stroke-width': 2 });
+txt(1131, 328, 'CLIP', 12);
+
+// sequencer
+plate(20, 386, 840, 248, 'SEQUENCER · 8 STEP');
+const pitchK = [], velK = [], lamps = [], active = [1, 1, 1, 1, 1, 1, 1, 1];
+const startX = 196, gap = 86;
+txt(162, 468, 'PITCH', 11, 't', L, 'end');
+txt(162, 536, 'VELOCITY', 11, 't', L, 'end');
+for (let i = 0; i < 8; i++) {
+  const x = startX + i * gap;
+  txt(x, 434, String(i + 1), 13, 'st');
+  pitchK.push(knob('p' + i, x, 464, 16, '', [.2, .5, .2, .7, .25, .5, .9, .35][i]));
+  velK.push(knob('v' + i, x, 530, 14, '', [.9, .4, .7, .5, .95, .3, .6, .45][i]));
+  const g = el('g', { class: 'lampbtn' });
+  el('rect', { x: x - 20, y: 566, width: 40, height: 40, rx: 3, fill: '#1f2a23' }, g);
+  const face = el('rect', { x: x - 16, y: 570, width: 32, height: 32, rx: 2, fill: '#3b4a3e', stroke: '#0f1611' }, g);
+  g.addEventListener('click', () => { active[i] ^= 1; paintLamps(); });
+  lamps.push(face);
+}
+knob('tempo', 82, 480, 22, '', .4, v => { bpm = Math.round(60 + v * 180); bpmNix(bpm); restart(); });
+txt(82, 442, 'TEMPO', 11);
+toggle('run', 56, 568, '', 'RUN', 'STOP', true, false, s => { running = s; runLamp.style.fill = (s ? '#5ff07a' : '#1e4a26'); });
+const resetG = el('g', { class: 'lampbtn' });
+el('circle', { cx: 120, cy: 574, r: 14, fill: 'url(#chrome)', stroke: '#454845' }, resetG);
+el('circle', { cx: 120, cy: 574, r: 9, fill: '#e2b322' }, resetG);
+txt(120, 604, 'RESET', 10, 't', resetG);
+resetG.addEventListener('click', () => { step = -1; });
+
+// patchbay
+plate(870, 386, 310, 248, 'PATCH');
+const jl = [['TRIG', 1], ['VCA CV', 0], ['VELOCITY', 1], ['VCA DEC', 0],
+            ['EXT IN', 0], ['VCF DEC', 0], ['NOISE', 0], ['VCF MOD', 0],
+            ['VCO DEC', 0], ['VCO 1', 1], ['1→2 FM', 0], ['VCO 2', 1],
+            ['PITCH', 1], ['RUN', 0], ['ADV', 0], ['RESET', 0]];
+const jp = jl.map((j, i) => [915 + (i % 4) * 74, 446 + Math.floor(i / 4) * 46]);
+jl.forEach((j, i) => jack(jp[i][0], jp[i][1], j[0], j[1]));
+function cable(a, b, color) {
+  const [x1, y1] = jp[a], [x2, y2] = jp[b];
+  const sag = 40 + Math.abs(x2 - x1) * .25;
+  el('path', { d: `M${x1} ${y1} C${x1} ${y1 + sag} ${x2} ${y2 + sag} ${x2} ${y2}`, fill: 'none', stroke: '#000', 'stroke-opacity': .3, 'stroke-width': 7, transform: 'translate(2 3)' });
+  el('path', { d: `M${x1} ${y1} C${x1} ${y1 + sag} ${x2} ${y2 + sag} ${x2} ${y2}`, fill: 'none', stroke: color, 'stroke-width': 5, 'stroke-linecap': 'round' });
+  [[x1, y1], [x2, y2]].forEach(([x, y]) => el('circle', { cx: x, cy: y, r: 7, fill: color, stroke: '#111', 'stroke-width': 1.2 }));
+}
+cable(2, 7, '#e2b322');
+cable(9, 1, '#c42318');
+
+// engine
+function paintLamps(cur = step) {
+  lamps.forEach((f, i) => {
+    let c = active[i] ? '#6b8a5a' : '#2c362f';
+    if (i === cur && !scrammed) c = active[i] ? '#ffb030' : '#7a5a2a';
+    if (scrammed) c = '#3b1210';
+    f.style.fill = (c);
+  });
+}
+function tick() {
+  if (running && !scrammed) {
+    step = (step + 1) % 8;
+    stepNix(step + 1);
+    if (active[step]) level = Math.max(level, velK[step].v * knobs.vol.v * 1.25);
+    paintLamps();
+  }
+}
+function restart() { clearInterval(timer); timer = setInterval(tick, 60000 / bpm / 2); }
+function frame() {
+  level *= 0.9;
+  outGauge(Math.min(1, level));
+  clip.style.fill = (level > .95 ? '#ff4a35' : '#4a1410');
+  tempoGauge((bpm - 60) / 180);
+  requestAnimationFrame(frame);
+}
+scramG.addEventListener('click', () => {
+  scrammed = !scrammed;
+  scramBtn.setAttribute('transform', scrammed ? 'translate(1 2) scale(.96)' : '');
+  if (scrammed) scramBtn.setAttribute('transform-origin', '1100 68');
+  paintLamps();
+  if (!scrammed) { step = -1; }
+});
+bpmNix(bpm); stepNix(1); knobs.tempo.set((bpm - 60) / 180); paintLamps(0); restart(); frame();
+</script>
+</body>
+</html>
