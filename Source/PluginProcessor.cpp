@@ -487,6 +487,11 @@ void PS8AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
             tree.removeProperty (presetProperty, nullptr);
             state.replaceState (tree);
             ++stateVersion;
+
+            // CLAP hosts expect a value rescan after a state load (the wrapper doesn't send one itself);
+            // it maps "parameter info changed" to that rescan.
+            if (is_clap)
+                updateHostDisplay (ChangeDetails().withParameterInfoChanged (true));
         }
     }
 }

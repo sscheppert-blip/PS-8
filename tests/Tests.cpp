@@ -908,6 +908,36 @@ static void testDoubleClick()
 }
 
 //==============================================================================
+// Like clap-validator's param-conversions: value -> text -> value -> text must give the same text.
+static void testTextConversions()
+{
+    PS8AudioProcessor processor;
+    int checked = 0;
+    juce::StringArray broken;
+
+    for (auto* param : processor.getParameters())
+    {
+        for (int i = 0; i <= 100; ++i)
+        {
+            const auto text = param->getText ((float) i / 100.0f, 64);
+            const auto back = param->getText (param->getValueForText (text), 64);
+            ++checked;
+
+            if (back != text)
+            {
+                broken.add (param->getName (64) + ": " + text + " -> " + back);
+                break;
+            }
+        }
+    }
+
+    for (const auto& b : broken)
+        std::printf ("      %s\n", b.toRawUTF8());
+
+    check (checked > 0 && broken.isEmpty(), "every parameter turns its text back into the same value");
+}
+
+//==============================================================================
 // Renders four bars of the init pattern (internal clock, 120 BPM) to a 16-bit WAV file.
 static int renderDemo (const char* path)
 {
@@ -1076,6 +1106,7 @@ int main (int argc, char** argv)
     testPatchbayMouse();
     testPresets();
     testDoubleClick();
+    testTextConversions();
 
     std::printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASSED" : "FAILED", failures, failures == 1 ? "" : "s");
     return failures == 0 ? 0 : 1;
