@@ -22,7 +22,8 @@ cmake --build build
 ./build/PS8Tests_artefacts/Release/PS8Tests
 ```
 
-The plugins are copied into the user plugin folders after building (`-DPS8_COPY_PLUGIN=OFF` to skip).
+The plugins are copied into the user plugin folders after building, and on macOS the Standalone app
+into `~/Applications` (`-DPS8_COPY_PLUGIN=OFF` to skip).
 The test runner also writes a demo pattern (`--render demo.wav`), a panel screenshot
 (`--snapshot panel.png`, add `patched` for a few demo cables and/or `service` for the open service hatch),
 frames of the hatch animation (`--hatch-frames <folder>`), the app icon (`--icon design/icon.png`,

@@ -100,6 +100,20 @@ if(APPLE)
             COMMAND test ! -d "${installed}" || codesign --force --deep --sign - "${installed}"
             VERBATIM)
     endforeach()
+
+    # The linker signs only the Standalone binary, not its resources (icon), so sign the whole app;
+    # with PS8_COPY_PLUGIN the signed app also replaces ~/Applications/PS-8.app.
+    add_custom_command(TARGET PS8_Standalone POST_BUILD
+        COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:PS8_Standalone>"
+        VERBATIM)
+    if(PS8_COPY_PLUGIN)
+        set(installedApp "$ENV{HOME}/Applications/$<TARGET_BUNDLE_DIR_NAME:PS8_Standalone>")
+        add_custom_command(TARGET PS8_Standalone POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${installedApp}"
+            COMMAND ditto "$<TARGET_BUNDLE_DIR:PS8_Standalone>" "${installedApp}"
+            COMMAND ${CMAKE_COMMAND} -E echo "Installed ${installedApp}"
+            VERBATIM)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------
