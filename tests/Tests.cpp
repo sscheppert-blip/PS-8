@@ -946,10 +946,35 @@ static int renderDemo (const char* path)
     return ok ? 0 : 1;
 }
 
-// Renders the editor to a PNG file (optionally with a few cables patched).
-static int snapshot (const char* path, bool patched)
+// Renders the editor while the service hatch opens (frames at 0.15 s steps) to check the animation.
+static int hatchFrames (const char* folder)
 {
     PS8AudioProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+    editor->setSize (FrontPanel::designWidth, FrontPanel::designHeight);
+    setParam (processor, ps8::params::id::serviceOpen, 1.0f);
+    int frame = 0;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (150);
+        const auto image = editor->createComponentSnapshot (editor->getLocalBounds().withHeight (420), true, 1.0f);
+        juce::FileOutputStream stream (juce::File (juce::String::fromUTF8 (folder)).getChildFile ("hatch-" + juce::String (frame++) + ".png"));
+        stream.setPosition (0);
+        stream.truncate();
+        juce::PNGImageFormat().writeImageToStream (image, stream);
+    }
+
+    return 0;
+}
+
+// Renders the editor to a PNG file (optionally with a few cables patched and/or the service hatch open).
+static int snapshot (const char* path, bool patched, bool service)
+{
+    PS8AudioProcessor processor;
+
+    if (service)
+        setParam (processor, ps8::params::id::serviceOpen, 1.0f);
 
     if (patched)
     {
@@ -1002,8 +1027,21 @@ int main (int argc, char** argv)
     if (argc == 3 && std::string_view (argv[1]) == "--render")
         return renderDemo (argv[2]);
 
-    if ((argc == 3 || argc == 4) && std::string_view (argv[1]) == "--snapshot")
-        return snapshot (argv[2], argc == 4 && std::string_view (argv[3]) == "patched");
+    if (argc == 3 && std::string_view (argv[1]) == "--hatch-frames")
+        return hatchFrames (argv[2]);
+
+    if (argc >= 3 && std::string_view (argv[1]) == "--snapshot")
+    {
+        auto has = [argc, argv] (std::string_view option)
+        {
+            for (int i = 3; i < argc; ++i)
+                if (option == argv[i])
+                    return true;
+            return false;
+        };
+
+        return snapshot (argv[2], has ("patched"), has ("service"));
+    }
 
     if (argc == 3 && std::string_view (argv[1]) == "--icon")
         return renderIcon (argv[2], 1024);

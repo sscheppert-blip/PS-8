@@ -42,6 +42,7 @@ namespace ps8::params
         inline constexpr const char* scale       = "seqScale";
         inline constexpr const char* glide       = "glide";
         inline constexpr const char* viewPage    = "viewPage";
+        inline constexpr const char* serviceOpen = "serviceOpen";
 
         inline constexpr const char* lfoRate     = "lfoRate";
         inline constexpr const char* lfoDivision = "lfoDivision";

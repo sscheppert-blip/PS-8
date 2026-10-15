@@ -19,7 +19,7 @@ namespace ps8::ui
         };
 
         static constexpr int numJacks = (int) patch::numOutputs + (int) patch::numInputs;
-        static constexpr float top = 804.0f, height = 168.0f;
+        static constexpr float top = 664.0f, height = 168.0f;
 
         static const std::array<Jack, numJacks>& jacks();
         static const Jack& jackFor (patch::Output);

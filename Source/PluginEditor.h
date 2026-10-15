@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "ui/Patchbay.h"
 #include "ui/ProgramDisplay.h"
+#include "ui/ServiceBoard.h"
 #include "ui/Widgets.h"
 
 // The front panel, laid out in design coordinates (designWidth x designHeight) and scaled as a whole.
@@ -10,7 +11,7 @@ class FrontPanel final : public juce::Component,
                          private juce::Timer
 {
 public:
-    static constexpr int designWidth = 1200, designHeight = 1016;
+    static constexpr int designWidth = 1200, designHeight = 876;
 
     explicit FrontPanel (PS8AudioProcessor&);
 
@@ -20,20 +21,29 @@ private:
     void timerCallback() override;
     void scram();
     void showPage (int page);
-    void updateLfoRateKnob (bool synced);
+    void setService (bool open);
+    void animateHatch();
+    void paintModules (juce::Graphics&) const;
 
     template <typename T, typename... Args>
     T& make (Args&&... args)
     {
+        return makeIn<T> (*this, std::forward<Args> (args)...);
+    }
+
+    template <typename T, typename... Args>
+    T& makeIn (juce::Component& parent, Args&&... args)
+    {
         auto& item = parts.emplace_back (std::make_unique<T> (std::forward<Args> (args)...));
-        addAndMakeVisible (*item);
+        parent.addAndMakeVisible (*item);
         return static_cast<T&> (*item);
     }
 
+    // controls on the module row live on the hood; x/y are panel coordinates
     ps8::ui::Knob& knob (const juce::String& paramId, const juce::String& label, float x, float y, float radius,
-                         bool bipolar = false, int ticks = 11, bool showValue = false);
+                         bool bipolar = false, int ticks = 11, bool showValue = false, juce::Component* parent = nullptr);
     ps8::ui::Toggle& toggle (const juce::String& paramId, float x, float y, std::vector<float> positions,
-                             ps8::ui::Toggle::Labels);
+                             ps8::ui::Toggle::Labels, juce::Component* parent = nullptr);
 
     PS8AudioProcessor& processor;
     std::vector<std::unique_ptr<juce::Component>> parts;
@@ -44,11 +54,9 @@ private:
     ps8::ui::Nixie* stepNixie = nullptr;
     ps8::ui::Lamp* runLamp = nullptr;
     ps8::ui::Lamp* clipLamp = nullptr;
-    ps8::ui::Knob* lfoRateKnob = nullptr;
-    ps8::ui::Annunciator* hostLamp = nullptr;
-    ps8::ui::Annunciator* midiLamp = nullptr;
-    ps8::ui::Annunciator* lfoLamp = nullptr;
-    ps8::ui::Annunciator* pageLamp = nullptr;
+    ps8::ui::Hood* hood = nullptr;
+    ps8::ui::ServiceBoard* board = nullptr;
+    ps8::ui::PageTabs* pageTabs = nullptr;
     ps8::ui::Patchbay* patchbay = nullptr;
     ps8::ui::ProgramDisplay* programDisplay = nullptr;
 
@@ -61,11 +69,20 @@ private:
 
     std::array<StepColumn, ps8::seq::maxSteps> stepColumns {};
     int shownPage = -1;
-    bool lfoSynced = false;
-    uint32_t lastMidiNotes = 0;
+
+    // service hatch: screws 0..1 turn out, then the lid 0..1 flips up
+    struct Animator final : juce::Timer
+    {
+        std::function<void()> tick;
+        void timerCallback() override { tick(); }
+    } animator;
+
+    bool serviceOpen = false;
+    float screws = 0.0f, lid = 0.0f;
+    double lastFrame = 0.0;
 
     float outputNeedle = 0.0f, loadNeedle = 0.0f;
-    double clipUntil = 0.0, alarmUntil = 0.0, midiUntil = 0.0;
+    double clipUntil = 0.0, alarmUntil = 0.0;
 };
 
 class PS8AudioProcessorEditor final : public juce::AudioProcessorEditor

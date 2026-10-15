@@ -80,7 +80,7 @@ namespace ps8::ui
         void drawCable (juce::Graphics& g, juce::Point<float> a, juce::Point<float> b, juce::Colour colour)
         {
             // the lowest point of the curve is half way to the control point: keep it on the panel
-            constexpr float lowest = 990.0f;
+            constexpr float lowest = Patchbay::top + 186.0f;
             const auto sag = juce::jmin (36.0f + 0.3f * a.getDistanceFrom (b), 2.0f * (lowest - (a.y + b.y) * 0.5f));
             const auto control = (a + b) * 0.5f + juce::Point<float> (0.0f, sag);
 

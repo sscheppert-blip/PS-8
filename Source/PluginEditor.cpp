@@ -9,8 +9,11 @@ namespace
     using Labels = ui::Toggle::Labels;
 
     // rows
-    constexpr float auxTop = 380.0f;   // SEQUENCE / LFO / STATUS
-    constexpr float seqTop = 528.0f;   // SEQUENCER
+    const juce::Rectangle<int> hatchArea { 6, 120, 1188, 264 };   // module row: hood over the service board
+    constexpr float seqTop = 388.0f;                              // SEQUENCER
+
+    // service hatch timing in seconds
+    constexpr double screwTime = 0.45, lidTime = 0.4;
 
     // sequencer columns (eight per page)
     constexpr int stepsPerPage = 8;
@@ -44,69 +47,58 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
     scramButton.place ({ 1084.0f, 68.0f }, 31.0f);
     scramButton.onPress = [this] { scram(); };
 
-    // oscillators
-    knob (id::vco1Freq, "FREQUENCY", 64, 196, 22);
-    knob (id::vco1Eg, "EG AMOUNT", 144, 196, 18, true);
-    toggle (id::vco1Square, 64, 300, { 1.0f, 0.0f }, { "SQR", "TRI", "WAVE" });
-    knob (id::vco1Level, "LEVEL", 144, 300, 18);
+    auto& key = make<ui::KeySwitch> (processor.getState(), id::serviceOpen);
+    key.place ({ 1002.0f, 62.0f });
 
-    knob (id::vco2Freq, "FREQUENCY", 240, 196, 22);
-    knob (id::vco2Eg, "EG AMOUNT", 320, 196, 18, true);
-    toggle (id::vco2Square, 240, 300, { 1.0f, 0.0f }, { "SQR", "TRI", "WAVE" });
-    knob (id::vco2Level, "LEVEL", 320, 300, 18);
+    // service hatch: the board lies under the hood that carries the module row
+    board = &make<ui::ServiceBoard> (processor);
+    board->setBounds (hatchArea);
+    board->onClose = [this] { setService (false); };
+
+    hood = &make<ui::Hood>();
+    hood->setBounds (hatchArea);
+    hood->painter = [this] (juce::Graphics& g) { paintModules (g); };
+    hood->onUnscrew = [this] { setService (true); };
+    auto* const h = hood;
+
+    // oscillators
+    knob (id::vco1Freq, "FREQUENCY", 64, 196, 22, false, 11, false, h);
+    knob (id::vco1Eg, "EG AMOUNT", 144, 196, 18, true, 11, false, h);
+    toggle (id::vco1Square, 64, 300, { 1.0f, 0.0f }, { "SQR", "TRI", "WAVE" }, h);
+    knob (id::vco1Level, "LEVEL", 144, 300, 18, false, 11, false, h);
+
+    knob (id::vco2Freq, "FREQUENCY", 240, 196, 22, false, 11, false, h);
+    knob (id::vco2Eg, "EG AMOUNT", 320, 196, 18, true, 11, false, h);
+    toggle (id::vco2Square, 240, 300, { 1.0f, 0.0f }, { "SQR", "TRI", "WAVE" }, h);
+    knob (id::vco2Level, "LEVEL", 320, 300, 18, false, 11, false, h);
 
     // modulation
-    knob (id::fmAmount, "FM 1>2 AMOUNT", 442, 196, 22);
-    toggle (id::fmOn, 404, 300, { 1.0f, 0.0f }, { "ON", "OFF", "FM" });
-    toggle (id::hardSync, 468, 300, { 1.0f, 0.0f }, { "ON", "OFF", "HARD SYNC" });
+    knob (id::fmAmount, "FM 1>2 AMOUNT", 442, 196, 22, false, 11, false, h);
+    toggle (id::fmOn, 404, 300, { 1.0f, 0.0f }, { "ON", "OFF", "FM" }, h);
+    toggle (id::hardSync, 468, 300, { 1.0f, 0.0f }, { "ON", "OFF", "HARD SYNC" }, h);
 
     // noise
-    knob (id::noiseLevel, "LEVEL", 585, 196, 20);
-    toggle (id::noisePink, 553, 300, { 0.0f, 1.0f }, { "WHITE", "PINK", "COLOR" });
-    knob (id::noiseVcf, "VCF MOD", 618, 300, 14);
+    knob (id::noiseLevel, "LEVEL", 585, 196, 20, false, 11, false, h);
+    toggle (id::noisePink, 553, 300, { 0.0f, 1.0f }, { "WHITE", "PINK", "COLOR" }, h);
+    knob (id::noiseVcf, "VCF MOD", 618, 300, 14, false, 11, false, h);
 
     // filter
-    knob (id::cutoff, "CUTOFF", 706, 196, 24);
-    knob (id::resonance, "RESONANCE", 800, 196, 20);
-    knob (id::vcfEg, "EG AMOUNT", 706, 300, 18, true);
-    toggle (id::highPass, 800, 300, { 0.0f, 1.0f }, { "LOW", "HIGH", "MODE" });
+    knob (id::cutoff, "CUTOFF", 706, 196, 24, false, 11, false, h);
+    knob (id::resonance, "RESONANCE", 800, 196, 20, false, 11, false, h);
+    knob (id::vcfEg, "EG AMOUNT", 706, 300, 18, true, 11, false, h);
+    toggle (id::highPass, 800, 300, { 0.0f, 1.0f }, { "LOW", "HIGH", "MODE" }, h);
 
     // decays
-    knob (id::pitchDecay, "PITCH", 896, 196, 18);
-    knob (id::vcfDecay, "FILTER", 964, 196, 18);
-    knob (id::vcaDecay, "VCA", 1032, 196, 18);
-    toggle (id::vcaSlow, 912, 300, { 0.0f, 1.0f }, { "FAST", "SLOW", "VCA ATTACK" });
-    knob (id::drive, "DRIVE", 1016, 300, 18);
+    knob (id::pitchDecay, "PITCH", 896, 196, 18, false, 11, false, h);
+    knob (id::vcfDecay, "FILTER", 964, 196, 18, false, 11, false, h);
+    knob (id::vcaDecay, "VCA", 1032, 196, 18, false, 11, false, h);
+    toggle (id::vcaSlow, 912, 300, { 0.0f, 1.0f }, { "FAST", "SLOW", "VCA ATTACK" }, h);
+    knob (id::drive, "DRIVE", 1016, 300, 18, false, 11, false, h);
 
     // output
-    knob (id::volume, "VOLUME", 1130, 200, 24);
-    clipLamp = &make<ui::Lamp> (juce::Colour (0xffff4a35), juce::Colour (0xff4a1410));
-    clipLamp->setBounds (1116, 282, 28, 28);
-
-    // sequence extras
-    const auto auxKnobY = auxTop + 60.0f;
-    knob (id::rate, "RATE", 62, auxKnobY, 16, false, 6, true);
-    knob (id::length, "LENGTH", 142, auxKnobY, 16, false, 16, true);
-    knob (id::scale, "SCALE", 222, auxKnobY, 16, false, 5, true);
-    knob (id::glide, "GLIDE", 302, auxKnobY, 16, false, 11, true);
-
-    // LFO
-    lfoRateKnob = &knob (id::lfoRate, "RATE", 418, auxKnobY, 16, false, 11, true);
-    knob (id::lfoShape, "SHAPE", 498, auxKnobY, 16, false, 5, true);
-    knob (id::lfoDepth, "DEPTH", 578, auxKnobY, 16, false, 11, true);
-    knob (id::lfoTarget, "TARGET", 658, auxKnobY, 16, false, 5, true);
-    toggle (id::lfoSync, 728, auxKnobY + 6.0f, { 0.0f, 1.0f }, { "FREE", "SYNC" });
-
-    // status
-    toggle (id::viewPage, 812, auxKnobY + 6.0f, { 0.0f, 1.0f }, { "1-8", "9-16", "STEPS" });
-    hostLamp = &make<ui::Annunciator> ("HOST LOCK", juce::Colour (0xff8fe39b));
-    midiLamp = &make<ui::Annunciator> ("MIDI IN", colours::amber);
-    lfoLamp = &make<ui::Annunciator> ("LFO", colours::amber);
-    pageLamp = &make<ui::Annunciator> ("STEPS 9-16", juce::Colour (0xffe8e2c8));
-    hostLamp->setBounds (870, (int) auxTop + 40, 146, 36);
-    midiLamp->setBounds (1024, (int) auxTop + 40, 146, 36);
-    lfoLamp->setBounds (870, (int) auxTop + 84, 146, 36);
-    pageLamp->setBounds (1024, (int) auxTop + 84, 146, 36);
+    knob (id::volume, "VOLUME", 1130, 200, 24, false, 11, false, h);
+    clipLamp = &makeIn<ui::Lamp> (*hood, juce::Colour (0xffff4a35), juce::Colour (0xff4a1410));
+    clipLamp->setBounds (1116 - hatchArea.getX(), 282 - hatchArea.getY(), 28, 28);
 
     // sequencer
     knob (id::tempo, "TEMPO", 70, seqTop + 72.0f, 22);
@@ -133,29 +125,94 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
         column.lamp->place ({ stepX (i), seqTop + 222.0f });
     }
 
+    pageTabs = &make<ui::PageTabs> (processor.getState(), id::viewPage);
+    pageTabs->setBounds (1060, (int) seqTop + 8, 112, 22);
+
     // cables hang over everything else
     patchbay = &make<ui::Patchbay> (processor);
     patchbay->setBounds (getLocalBounds());
 
     showPage (0);
-    updateLfoRateKnob (false);
+
+    // an open hatch (saved with the project) shows up open, without the animation
+    serviceOpen = processor.getState().getRawParameterValue (id::serviceOpen)->load() > 0.5f;
+    screws = lid = serviceOpen ? 1.0f : 0.0f;
+    animator.tick = [this] { animateHatch(); };
+    animateHatch();
+
     startTimerHz (30);
 }
 
 ui::Knob& FrontPanel::knob (const juce::String& paramId, const juce::String& label, float x, float y, float radius,
-                            bool bipolar, int ticks, bool showValue)
+                            bool bipolar, int ticks, bool showValue, juce::Component* parent)
 {
-    auto& k = make<ui::Knob> (processor.getState(), paramId, label, radius, ticks, bipolar, showValue);
-    k.place ({ x, y });
+    auto& target = parent != nullptr ? *parent : static_cast<juce::Component&> (*this);
+    auto& k = makeIn<ui::Knob> (target, processor.getState(), paramId, label, radius, ticks, bipolar, showValue);
+    k.place (juce::Point<float> (x, y) - target.getPosition().toFloat() * (parent != nullptr ? 1.0f : 0.0f));
     return k;
 }
 
 ui::Toggle& FrontPanel::toggle (const juce::String& paramId, float x, float y, std::vector<float> positions,
-                                Labels labels)
+                                Labels labels, juce::Component* parent)
 {
-    auto& t = make<ui::Toggle> (processor.getState(), paramId, std::move (positions), std::move (labels));
-    t.place ({ x, y });
+    auto& target = parent != nullptr ? *parent : static_cast<juce::Component&> (*this);
+    auto& t = makeIn<ui::Toggle> (target, processor.getState(), paramId, std::move (positions), std::move (labels));
+    t.place (juce::Point<float> (x, y) - target.getPosition().toFloat() * (parent != nullptr ? 1.0f : 0.0f));
     return t;
+}
+
+void FrontPanel::setService (bool open)
+{
+    if (auto* parameter = processor.getState().getParameter (id::serviceOpen))
+    {
+        parameter->beginChangeGesture();
+        parameter->setValueNotifyingHost (open ? 1.0f : 0.0f);
+        parameter->endChangeGesture();
+    }
+}
+
+void FrontPanel::animateHatch()
+{
+    const auto now = juce::Time::getMillisecondCounterHiRes();
+    const auto dt = lastFrame > 0.0 ? juce::jlimit (0.0, 0.1, (now - lastFrame) / 1000.0) : 0.0;
+    lastFrame = now;
+
+    // opening: screws first, then the lid; closing the other way round
+    if (serviceOpen)
+    {
+        if (screws < 1.0f)
+            screws = juce::jmin (1.0f, screws + (float) (dt / screwTime));
+        else
+            lid = juce::jmin (1.0f, lid + (float) (dt / lidTime));
+    }
+    else
+    {
+        if (lid > 0.0f)
+            lid = juce::jmax (0.0f, lid - (float) (dt / lidTime));
+        else
+            screws = juce::jmax (0.0f, screws - (float) (dt / screwTime));
+    }
+
+    // the lid swings up on its top hinge (accelerating like a real flap)
+    const auto swing = lid * lid * (3.0f - 2.0f * lid);
+    const auto height = juce::jmax (0.01f, 1.0f - swing);
+    hood->setTransform (juce::AffineTransform::scale (1.0f, height, 0.0f, (float) hatchArea.getY()));
+    hood->setVisible (lid < 1.0f);
+    hood->setScrews (screws);
+    hood->setShade (swing);
+    board->setLidShadow (lid > 0.0f && lid < 1.0f ? 1.0f - swing : 0.0f);
+
+    const auto done = serviceOpen ? lid >= 1.0f : screws <= 0.0f;
+
+    if (done)
+    {
+        animator.stopTimer();
+        lastFrame = 0.0;
+    }
+    else if (! animator.isTimerRunning())
+    {
+        animator.startTimerHz (60);
+    }
 }
 
 void FrontPanel::showPage (int page)
@@ -174,10 +231,16 @@ void FrontPanel::showPage (int page)
     repaint();
 }
 
-void FrontPanel::updateLfoRateKnob (bool synced)
+void FrontPanel::paintModules (juce::Graphics& g) const
 {
-    lfoSynced = synced;
-    lfoRateKnob->bind (processor.getState(), synced ? id::lfoDivision : id::lfoRate, synced ? 8 : 11);
+    ui::drawPlate (g, { 20.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 1");
+    ui::drawPlate (g, { 196.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 2");
+    ui::drawPlate (g, { 372.0f, 132.0f, 140.0f, 240.0f }, "MODULATION");
+    ui::drawPlate (g, { 520.0f, 132.0f, 130.0f, 240.0f }, "NOISE");
+    ui::drawPlate (g, { 658.0f, 132.0f, 190.0f, 240.0f }, "FILTER");
+    ui::drawPlate (g, { 856.0f, 132.0f, 216.0f, 240.0f }, "DECAY");
+    ui::drawPlate (g, { 1080.0f, 132.0f, 100.0f, 240.0f }, "OUTPUT");
+    ui::drawLabel (g, "CLIP", { 1130.0f, 326.0f }, 12.0f);
 }
 
 void FrontPanel::paint (juce::Graphics& g)
@@ -210,21 +273,8 @@ void FrontPanel::paint (juce::Graphics& g)
     ui::drawLabel (g, "RUN", { 834.0f, 100.0f }, 10.0f, colours::dimText);
     ui::drawLabel (g, "STEP", { 912.0f, 38.0f }, 10.0f, colours::dimText);
 
-    // modules
-    ui::drawPlate (g, { 20.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 1");
-    ui::drawPlate (g, { 196.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 2");
-    ui::drawPlate (g, { 372.0f, 132.0f, 140.0f, 240.0f }, "MODULATION");
-    ui::drawPlate (g, { 520.0f, 132.0f, 130.0f, 240.0f }, "NOISE");
-    ui::drawPlate (g, { 658.0f, 132.0f, 190.0f, 240.0f }, "FILTER");
-    ui::drawPlate (g, { 856.0f, 132.0f, 216.0f, 240.0f }, "DECAY");
-    ui::drawPlate (g, { 1080.0f, 132.0f, 100.0f, 240.0f }, "OUTPUT");
-    ui::drawLabel (g, "CLIP", { 1130.0f, 326.0f }, 12.0f);
-
-    ui::drawPlate (g, { 20.0f, auxTop, 340.0f, 140.0f }, "SEQUENCE");
-    ui::drawPlate (g, { 368.0f, auxTop, 392.0f, 140.0f }, "LFO");
-    ui::drawPlate (g, { 768.0f, auxTop, 412.0f, 140.0f }, "STATUS");
-
-    ui::drawPlate (g, { 20.0f, seqTop, 1160.0f, 268.0f }, shownPage == 0 ? "SEQUENCER - STEPS 1-8" : "SEQUENCER - STEPS 9-16");
+    // the module row is painted by the hood (see paintModules)
+    ui::drawPlate (g, { 20.0f, seqTop, 1160.0f, 268.0f }, "SEQUENCER");
 
     for (int i = 0; i < stepsPerPage; ++i)
     {
@@ -262,13 +312,18 @@ void FrontPanel::timerCallback()
     auto& display = processor.getDisplay();
     patchbay->update();
     programDisplay->update();
+    board->update();
+
+    if (const auto open = state.getRawParameterValue (id::serviceOpen)->load() > 0.5f; open != serviceOpen)
+    {
+        serviceOpen = open;
+        animateHatch();
+    }
+
     const auto now = juce::Time::getMillisecondCounterHiRes();
 
     if (const auto page = state.getRawParameterValue (id::viewPage)->load() > 0.5f ? 1 : 0; page != shownPage)
         showPage (page);
-
-    if (const auto synced = state.getRawParameterValue (id::lfoSync)->load() > 0.5f; synced != lfoSynced)
-        updateLfoRateKnob (synced);
 
     const auto step = display.step.load();
     const auto length = juce::roundToInt (state.getRawParameterValue (id::length)->load());
@@ -281,17 +336,7 @@ void FrontPanel::timerCallback()
     bpmNixie->setText (juce::String (juce::roundToInt (display.bpm.load())));
     runLamp->setOn (display.running.load());
 
-    // annunciators
-    if (const auto notes = display.midiNotes.load(); notes != lastMidiNotes)
-    {
-        lastMidiNotes = notes;
-        midiUntil = now + 120.0;
-    }
-
-    hostLamp->setOn (display.hostLocked.load());
-    midiLamp->setOn (now < midiUntil);
-    lfoLamp->setOn (display.lfoHigh.load());
-    pageLamp->setOn (step >= stepsPerPage);
+    pageTabs->setPlayingPage (step < 0 ? -1 : step / stepsPerPage);
 
     // output needle: -20 dB at the left stop, 0 dB in the middle, +3 dB at the right stop
     const auto peak = display.peak.exchange (0.0f);
@@ -318,7 +363,8 @@ PS8AudioProcessorEditor::PS8AudioProcessorEditor (PS8AudioProcessor& p)
 
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio ((double) FrontPanel::designWidth / FrontPanel::designHeight);
-    setResizeLimits (minWidth, 610, maxWidth, 1524);
+    setResizeLimits (minWidth, minWidth * FrontPanel::designHeight / FrontPanel::designWidth,
+                     maxWidth, maxWidth * FrontPanel::designHeight / FrontPanel::designWidth);
 
     // the last window size, shared by all instances
     const auto width = juce::jlimit (minWidth, maxWidth, settings->getEditorWidth (1020));

@@ -46,6 +46,47 @@ namespace ps8::ui
         g.drawEllipse (juce::Rectangle<float> (radius * 2.0f, radius * 2.0f).withCentre (centre), 0.8f);
     }
 
+    void drawTrimmer (juce::Graphics& g, juce::Point<float> centre, float r, float angle,
+                      int numTicks, float startAngle, float endAngle)
+    {
+        // silkscreen scale on the board
+        g.setColour (colours::silkscreen.withAlpha (0.8f));
+
+        for (int i = 0; i < numTicks; ++i)
+        {
+            const auto a = startAngle + (endAngle - startAngle) * (float) i / (float) juce::jmax (1, numTicks - 1);
+            g.drawLine (juce::Line<float> (polar (centre, a, r + 4.0f), polar (centre, a, r + 8.0f)), 1.0f);
+        }
+
+        // square body with a rounded top
+        const auto body = juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (centre);
+        g.setColour (juce::Colours::black.withAlpha (0.35f));
+        g.fillRoundedRectangle (body.translated (1.5f, 2.5f), 3.0f);
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xff4f86d6), body.getTopLeft(),
+                                                 juce::Colour (0xff1d4796), body.getBottomRight(), false));
+        g.fillRoundedRectangle (body, 3.0f);
+        g.setColour (juce::Colour (0xff12305f));
+        g.drawRoundedRectangle (body, 3.0f, 1.0f);
+
+        // white rotor with a cross slot
+        const auto rotor = r * 0.72f;
+        g.setGradientFill (juce::ColourGradient (juce::Colours::white, centre - juce::Point<float> (rotor, rotor) * 0.4f,
+                                                 juce::Colour (0xffb8bcc0), centre + juce::Point<float> (rotor, rotor), true));
+        g.fillEllipse (juce::Rectangle<float> (rotor * 2.0f, rotor * 2.0f).withCentre (centre));
+        g.setColour (juce::Colour (0xff5d6268));
+        g.drawEllipse (juce::Rectangle<float> (rotor * 2.0f, rotor * 2.0f).withCentre (centre), 0.8f);
+
+        juce::Path slot;
+        slot.addRoundedRectangle (-rotor * 0.85f, -1.6f, rotor * 1.7f, 3.2f, 1.0f);
+        slot.addRoundedRectangle (-1.6f, -rotor * 0.85f, 3.2f, rotor * 1.7f, 1.0f);
+        g.setColour (juce::Colour (0xff3a3f45));
+        g.fillPath (slot, juce::AffineTransform::rotation (angle).translated (centre));
+
+        // pointer notch
+        g.setColour (juce::Colour (0xffc8322a));
+        g.fillEllipse (juce::Rectangle<float> (3.0f, 3.0f).withCentre (polar (centre, angle, rotor * 0.55f)));
+    }
+
     void drawScrew (juce::Graphics& g, juce::Point<float> centre)
     {
         drawChrome (g, centre, 5.0f);
@@ -193,6 +234,15 @@ namespace ps8::ui
     {
         const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
         const auto centre = bounds.getCentre();
+
+        if ((bool) slider.getProperties().getWithDefault ("trimmer", false))
+        {
+            drawTrimmer (g, centre, juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f - 14.0f,
+                         startAngle + sliderPos * (endAngle - startAngle),
+                         (int) slider.getProperties().getWithDefault ("ticks", 11), startAngle, endAngle);
+            return;
+        }
+
         const auto r = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f - 14.0f;
         const auto numTicks = (int) slider.getProperties().getWithDefault ("ticks", 11);
         const auto bipolar = (bool) slider.getProperties().getWithDefault ("bipolar", false);
@@ -250,6 +300,9 @@ namespace ps8::ui
         slider.onValueChange = [this] { if (showValue) repaint(); };
         addAndMakeVisible (slider);
 
+        // only the knob itself takes clicks, so neighbouring labels never cover it
+        setInterceptsMouseClicks (false, true);
+
         bind (state, paramId, numTicks);
     }
 
@@ -263,6 +316,13 @@ namespace ps8::ui
         if (parameter != nullptr)
             slider.setDoubleClickReturnValue (true, parameter->convertFrom0to1 (parameter->getDefaultValue()));
 
+        repaint();
+    }
+
+    void Knob::setTrimmerStyle()
+    {
+        trimmer = true;
+        slider.getProperties().set ("trimmer", true);
         repaint();
     }
 
@@ -298,14 +358,23 @@ namespace ps8::ui
         const auto bottom = (radius + 14.0f) * 2.0f;
 
         if (label.isNotEmpty())
-            drawLabel (g, label, { (float) getWidth() * 0.5f, bottom + 6.0f }, 12.0f);
+            drawLabel (g, label, { (float) getWidth() * 0.5f, bottom + 6.0f }, trimmer ? 11.0f : 12.0f,
+                       trimmer ? colours::silkscreen : colours::ink);
 
         if (showValue && parameter != nullptr)
         {
             const auto tag = juce::Rectangle<float> (70.0f, 15.0f).withCentre ({ (float) getWidth() * 0.5f, bottom + 24.0f });
-            g.setColour (colours::ink);
+            g.setColour (trimmer ? juce::Colour (0xff0d2618) : colours::ink);
             g.fillRoundedRectangle (tag, 2.0f);
-            drawLabel (g, parameter->getCurrentValueAsText().toUpperCase(), tag.getCentre(), 10.0f, colours::nixie);
+
+            if (trimmer)
+            {
+                g.setColour (colours::silkscreen.withAlpha (0.5f));
+                g.drawRoundedRectangle (tag, 2.0f, 0.8f);
+            }
+
+            drawLabel (g, parameter->getCurrentValueAsText().toUpperCase(), tag.getCentre(), 10.0f,
+                       trimmer ? colours::led : colours::nixie);
         }
     }
 
@@ -612,41 +681,6 @@ namespace ps8::ui
     }
 
     //==============================================================================
-    Annunciator::Annunciator (const juce::String& text, juce::Colour colour) : caption (text), onColour (colour)
-    {
-        setInterceptsMouseClicks (false, false);
-    }
-
-    void Annunciator::setOn (bool shouldBeOn)
-    {
-        if (on != shouldBeOn)
-        {
-            on = shouldBeOn;
-            repaint();
-        }
-    }
-
-    void Annunciator::paint (juce::Graphics& g)
-    {
-        const auto bounds = getLocalBounds().toFloat();
-        g.setColour (colours::ink);
-        g.fillRoundedRectangle (bounds, 3.0f);
-
-        const auto face = bounds.reduced (4.0f);
-        g.setColour (on ? onColour : juce::Colour (0xff3a403b));
-        g.fillRect (face);
-
-        if (on)
-        {
-            g.setColour (juce::Colours::white.withAlpha (0.25f));
-            g.fillRect (face.withHeight (face.getHeight() * 0.35f));
-        }
-
-        g.setColour (on ? colours::ink : juce::Colour (0xff6d766f));
-        g.setFont (stencilFont (13.0f));
-        g.drawText (caption, face, juce::Justification::centred, false);
-    }
-
     //==============================================================================
     Lamp::Lamp (juce::Colour onCol, juce::Colour offCol) : onColour (onCol), offColour (offCol)
     {

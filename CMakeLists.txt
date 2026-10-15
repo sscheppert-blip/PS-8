@@ -57,6 +57,7 @@ set(PS8_SOURCES
     Source/PluginEditor.cpp
     Source/ui/Patchbay.cpp
     Source/ui/ProgramDisplay.cpp
+    Source/ui/ServiceBoard.cpp
     Source/ui/Widgets.cpp)
 
 target_sources(PS8 PRIVATE ${PS8_SOURCES})

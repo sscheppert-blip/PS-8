@@ -21,7 +21,7 @@ gibt Klangrezepte und listet alle Parameter.
 3. [So entsteht der Klang](#3-so-entsteht-der-klang)
 4. [Die Frontplatte](#4-die-frontplatte)
 5. [Sequencer](#5-sequencer)
-6. [Sequence, LFO und Status](#6-sequence-lfo-und-status)
+6. [Unter der Haube: die Service-Platine](#6-unter-der-haube-die-service-platine)
 7. [Patchbay](#7-patchbay)
 8. [Presets](#8-presets)
 9. [MIDI](#9-midi)
@@ -144,6 +144,7 @@ Die Hüllkurven springen sofort auf voll und klingen dann ab – wie lange, best
 | **RUN** (grüne Lampe) | Leuchtet, wenn der Sequencer läuft |
 | **STEP** (Nixies) | Zuletzt gespielter Step |
 | **SCRAM** | Not-Aus: Sequencer stoppt (RUN geht aus), der Klang verstummt sofort, die Step-Lampen blinken kurz rot |
+| **SERVICE** (Schlüssel) | Öffnet und schließt die Haube über der Modulreihe – siehe [6. Unter der Haube](#6-unter-der-haube-die-service-platine) |
 
 ### OSCILLATOR 1 und OSCILLATOR 2
 
@@ -222,6 +223,7 @@ Mit den Buchsen unten leitest du Hüllkurven, Oszillatoren und den Sequencer per
 | **TRIG** | Aktuellen Step nochmal spielen |
 | **ADV** | Einen Step weiter und spielen |
 | **RESET** | Der nächste Step ist wieder Step 1 |
+| **1-8 / 9-16** (Reiter in der Kopfzeile) | Welche acht Steps angezeigt werden. Ein Punkt leuchtet auf der Seite, die gerade spielt |
 
 **HOST-Modus im Detail:** Die Steps hängen an der Position im Song, gezählt ab Songanfang. Bei
 8 Steps à 1/16 fällt Step 1 also auf jede halbe Note, bei 16 Steps auf jeden Taktanfang. Springst du in der DAW oder läuft ein Loop,
@@ -239,12 +241,22 @@ Kapitel 7).
 
 ---
 
-## 6. Sequence, LFO und Status
+## 6. Unter der Haube: die Service-Platine
 
-Diese Reihe enthält Extras. Ab Werk ist alles neutral: 8 Steps, keine Skala, kein Glide, LFO-Stärke 0.
-Unter jedem Regler zeigt eine kleine Anzeige den aktuellen Wert.
+![PS-8 Service-Platine](images/service.png)
 
-### SEQUENCE
+Vorne auf der Frontplatte ist nur, was zum Original gehört. Die Extras sitzen auf einer Platine unter
+der Modulreihe – wie hinter der Wartungsklappe einer Leitwarte.
+
+- **Öffnen:** den **SERVICE**-Schlüssel drehen (oben rechts neben SCRAM) oder auf eine der vier
+  Schrauben an den Ecken der Modulreihe klicken. Die Schrauben drehen sich raus, die Haube klappt hoch.
+- **Schließen:** den Schlüssel zurückdrehen oder auf eines der vier Schraubenlöcher der Platine klicken.
+- Ob die Haube offen ist, wird mit dem Projekt gespeichert. Presets ändern daran nichts.
+
+Ab Werk ist hier alles neutral: 8 Steps, keine Skala, kein Glide, LFO-Stärke 0. Die blauen Trimmpotis
+bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt eine kleine Anzeige den Wert.
+
+### SEQ OPTIONS
 
 | Element | Funktion |
 |---|---|
@@ -257,21 +269,19 @@ Unter jedem Regler zeigt eine kleine Anzeige den aktuellen Wert.
 
 | Element | Funktion |
 |---|---|
-| **RATE** | Geschwindigkeit, 0,05–40 Hz. Bei **SYNC** wählt derselbe Regler einen Notenwert: 4 Takte, 2 Takte, 1 Takt, 1/2, 1/4, 1/8, 1/16, 1/32 |
+| **RATE** | Geschwindigkeit, 0,05–40 Hz. Bei **SYNC** wählt dasselbe Trimmpoti einen Notenwert: 4 Takte, 2 Takte, 1 Takt, 1/2, 1/4, 1/8, 1/16, 1/32 |
 | **SHAPE** | Dreieck, Rechteck, Sägezahn fallend, Sägezahn steigend, Sample & Hold (Zufallsstufen) |
 | **DEPTH** | Stärke. 0 = aus |
 | **TARGET** | **PITCH** (beide VCOs, bis ±2 Oktaven), **VCO 2** (nur VCO 2), **CUTOFF** (bis ±4 Oktaven), **FM** (FM-Stärke), **VOLUME** (Tremolo) |
-| **FREE / SYNC** | Frei laufend oder im Takt der DAW (bei HOST und laufender DAW hängt der LFO fest am Takt) |
+| **LFO SYNC** (Jumper) | **FREE** oder **SYNC**: Klick auf den Jumper steckt ihn um. Bei SYNC, HOST und laufender DAW hängt der LFO fest am Takt |
 
-### STATUS
+### STATUS (LEDs)
 
-| Element | Funktion |
+| LED | Funktion |
 |---|---|
-| **STEPS** 1-8 / 9-16 | Welche acht Steps unten im Sequencer angezeigt werden |
 | **HOST LOCK** | Leuchtet, wenn PS-8 am Takt der DAW hängt |
 | **MIDI IN** | Blinkt bei jeder eingehenden Note |
 | **LFO** | Blinkt im Takt des LFO (wenn DEPTH > 0) |
-| **STEPS 9-16** | Leuchtet, solange der Sequencer auf Steps 9–16 spielt – auch wenn du gerade 1–8 ansiehst |
 
 ---
 
@@ -450,10 +460,10 @@ Rezepte sind auch als Werks-Presets eingebaut. Uhrzeiten beziehen sich auf die R
 - VCO 1 auf SQR, FREQUENCY 10 Uhr, EG AMOUNT Mitte
 - FILTER: CUTOFF 9 Uhr, RESONANCE 3 Uhr, EG AMOUNT 2 Uhr
 - DECAY: FILTER 10 Uhr, VCA 1 Uhr
-- SCALE MINOR, GLIDE 9 Uhr, PITCH-Regler verteilen, LENGTH 16
+- Service-Platine: SCALE MINOR, GLIDE 9 Uhr, LENGTH 16; dann die PITCH-Regler verteilen
 
 **Bewegter Groove**
-- Beliebiger Sound, dazu LFO: TARGET CUTOFF, SHAPE TRIANGLE, SYNC, RATE 1 BAR, DEPTH 12 Uhr
+- Beliebiger Sound, dazu der LFO auf der Service-Platine: TARGET CUTOFF, SHAPE TRIANGLE, Jumper auf SYNC, RATE 1 BAR, DEPTH 12 Uhr
 - Oder TARGET PITCH, SHAPE S&H, RATE 1/16, DEPTH 9 Uhr für zufällige Tonhöhen
 
 ---
@@ -522,7 +532,7 @@ So heißen die Parameter in der Automation der DAW.
 | Step 1 … 16 Velocity | 0–100 % | 100 % |
 | Step 1 … 16 On | Off / On | On |
 
-Die Anzeige „Steps 1-8 / 9-16“ und die Patch-Kabel werden mit dem Projekt gespeichert, sind aber nicht automatisierbar.
+Die Anzeige „Steps 1-8 / 9-16“, die offene oder geschlossene Haube und die Patch-Kabel werden mit dem Projekt gespeichert, sind aber nicht automatisierbar.
 
 ---
 

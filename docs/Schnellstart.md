@@ -41,21 +41,24 @@ Doppelklick auf einen Regler setzt ihn zurück. Beim Drehen zeigt eine kleine An
 | **PITCH TO** | Step-Pitch geht auf beide VCOs, aus, oder nur auf VCO 2 |
 | **TRIG / ADV / RESET** | Aktuellen Step nochmal / nächster Step / zurück auf Step 1 |
 | **SCRAM** | Not-Aus: Sequencer stoppt, Sound ist sofort weg |
+| **1-8 / 9-16** | Reiter in der Sequencer-Kopfzeile: welche Steps angezeigt werden (Punkt = spielt gerade) |
 
-## SEQUENCE, LFO, STATUS (Extras – ab Werk aus)
+## Unter der Haube (Extras – ab Werk aus)
+
+Schlüssel **SERVICE** drehen (oben rechts) oder auf eine Schraube an den Ecken der Modulreihe klicken:
+die Haube klappt hoch, darunter liegt die Service-Platine mit blauen Trimmpotis. Zuklappen genauso.
 
 | Element | Funktion |
 |---|---|
 | **RATE** | Notenwert pro Step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 |
-| **LENGTH** | Anzahl Steps, 1–16. Ab 9 gibt es eine zweite Seite (siehe **STEPS**) |
+| **LENGTH** | Anzahl Steps, 1–16. Ab 9 gibt es eine zweite Seite (Reiter **9-16**) |
 | **SCALE** | Step-Pitch rastet ein: OFF (stufenlos), Halbtöne, Dur, Moll, Pentatonik |
 | **GLIDE** | Ton gleitet von Step zu Step statt zu springen |
-| **LFO RATE** | Geschwindigkeit. Bei **SYNC** in Notenwerten (4 Takte … 1/32) im DAW-Takt |
+| **LFO RATE** | Geschwindigkeit. Mit Jumper auf **SYNC** in Notenwerten (4 Takte … 1/32) im DAW-Takt |
 | **LFO SHAPE** | Dreieck, Rechteck, Sägezahn ab/auf, Sample & Hold (Zufall) |
 | **LFO DEPTH** | Stärke (0 = aus) |
 | **LFO TARGET** | Ziel: Pitch beider VCOs, nur VCO 2, Cutoff, FM-Stärke, Lautstärke |
-| **STEPS 1-8 / 9-16** | Welche Steps unten angezeigt werden |
-| **Warnlampen** | HOST LOCK = läuft im DAW-Takt, MIDI IN = Note kommt an, LFO blinkt mit, STEPS 9-16 = Sequencer spielt gerade auf Seite 2 |
+| **LEDs** | HOST LOCK = läuft im DAW-Takt, MIDI IN = Note kommt an, LFO blinkt mit |
 
 Leuchttaster hinter der eingestellten Länge sind abgedunkelt.
 

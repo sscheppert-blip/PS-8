@@ -7,8 +7,9 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 - 4-pole ladder filter (low/high pass) with envelope and noise modulation
 - Three decay envelopes (pitch, filter, VCA) with fast/slow VCA attack, drive
 - Step sequencer (1–16 steps) with pitch and velocity per step, steps switchable on/off
-- Pitch quantiser (chromatic, major, minor, pentatonic) and glide
-- LFO (5 shapes, free or host-synced) on pitch, VCO 2, cutoff, FM or volume
+- Extras under the hood: unscrew the module row to reach a service board with sequence length,
+  pitch quantiser (chromatic, major, minor, pentatonic), glide and an LFO (5 shapes, free or
+  host-synced) on pitch, VCO 2, cutoff, FM or volume
 - Internal tempo or locked to the host's bar position, 1/4 … 1/32 incl. triplets
 - MIDI: play single steps, advance, retrigger and reset by note
 - Patchbay with 26 jacks: re-route envelopes, oscillators, sequencer clock, run and reset by cable;
@@ -21,6 +22,8 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 **Manual:** [English](docs/Manual.md) · [Deutsch](docs/Handbuch.md) · **Schnellstart (German quick start):** [docs/Schnellstart.md](docs/Schnellstart.md)
 
 ![PS-8 front panel](docs/images/panel.png)
+
+![PS-8 service board](docs/images/service.png)
 
 ## Download
 

@@ -20,6 +20,10 @@ namespace ps8::ui
         inline const juce::Colour amber      { 0xffffb030 };
         inline const juce::Colour red        { 0xffc42318 };
         inline const juce::Colour nixie      { 0xffff9a2e };
+        inline const juce::Colour pcb        { 0xff1d5236 };
+        inline const juce::Colour silkscreen { 0xffe9efe4 };
+        inline const juce::Colour copper     { 0xff3a7a4e };
+        inline const juce::Colour led        { 0xff9dff8a };
     }
 
     juce::Font stencilFont (float height);
@@ -31,6 +35,9 @@ namespace ps8::ui
     // the app icon: a nixie "8" in a hazard-striped ring on a panel-green tile
     void drawAppIcon (juce::Graphics&, juce::Rectangle<float> area);
     void drawChrome (juce::Graphics&, juce::Point<float> centre, float radius);
+    // blue cermet trimmer seen from above; angle in radians, clockwise from 12 o'clock
+    void drawTrimmer (juce::Graphics&, juce::Point<float> centre, float radius, float angle,
+                      int numTicks, float startAngle, float endAngle);
     void drawJack (juce::Graphics&, juce::Point<float> centre, const juce::String& label, bool output);
     void drawLabel (juce::Graphics&, const juce::String& text, juce::Point<float> centre, float height,
                     juce::Colour = colours::ink, juce::Justification = juce::Justification::centred);
@@ -60,6 +67,9 @@ namespace ps8::ui
         // attach to another parameter (e.g. LFO rate free/synced)
         void bind (juce::AudioProcessorValueTreeState&, const juce::String& paramId, int numTicks);
 
+        // draw as a blue trimmer on a circuit board, with silkscreen label and value tag
+        void setTrimmerStyle();
+
         void place (juce::Point<float> centre);
         void paint (juce::Graphics&) override;
         void resized() override;
@@ -70,7 +80,7 @@ namespace ps8::ui
         juce::Slider slider;
         juce::String label;
         float radius;
-        bool showValue;
+        bool showValue, trimmer = false;
         juce::RangedAudioParameter* parameter = nullptr;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
     };
@@ -171,21 +181,6 @@ namespace ps8::ui
         juce::String label;
         juce::StringArray marks;
         float value = 0.0f;
-    };
-
-    // Back-lit annunciator tile with an engraved caption.
-    class Annunciator final : public juce::Component
-    {
-    public:
-        Annunciator (const juce::String& caption, juce::Colour onColour);
-
-        void setOn (bool);
-        void paint (juce::Graphics&) override;
-
-    private:
-        juce::String caption;
-        juce::Colour onColour;
-        bool on = false;
     };
 
     class Lamp final : public juce::Component

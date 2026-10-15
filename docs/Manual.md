@@ -20,7 +20,7 @@ This manual explains every control, gives sound recipes and lists all parameters
 3. [How the sound is made](#3-how-the-sound-is-made)
 4. [The front panel](#4-the-front-panel)
 5. [Sequencer](#5-sequencer)
-6. [Sequence, LFO and Status](#6-sequence-lfo-and-status)
+6. [Under the hood: the service board](#6-under-the-hood-the-service-board)
 7. [Patchbay](#7-patchbay)
 8. [Presets](#8-presets)
 9. [MIDI](#9-midi)
@@ -140,6 +140,7 @@ the **EG AMOUNT** knobs.
 | **RUN** (green lamp) | Lit while the sequencer runs |
 | **STEP** (nixies) | Last step played |
 | **SCRAM** | Emergency stop: the sequencer stops (RUN switches off), the sound is cut at once, the step lamps flash red briefly |
+| **SERVICE** (key) | Opens and closes the cover over the module row – see [6. Under the hood](#6-under-the-hood-the-service-board) |
 
 ### OSCILLATOR 1 and OSCILLATOR 2
 
@@ -218,6 +219,7 @@ The jacks at the bottom re-route envelopes, oscillators and the sequencer with c
 | **TRIG** | Play the current step again |
 | **ADV** | Advance one step and play it |
 | **RESET** | The next step is step 1 again |
+| **1-8 / 9-16** (tabs in the title bar) | Which eight steps are shown. A dot lights on the page that is playing |
 
 **HOST mode in detail:** the steps follow the position in the song, counted from the song start. With
 8 steps of 1/16, step 1 falls on every half note; with 16 steps on every bar. When you jump in the DAW
@@ -233,12 +235,22 @@ from step to step. For identical hits, patch **TRIG → VCO RST** (see chapter 7
 
 ---
 
-## 6. Sequence, LFO and Status
+## 6. Under the hood: the service board
 
-This row holds extras. By default everything is neutral: 8 steps, no scale, no glide, LFO depth 0.
-A small readout under each knob shows its current value.
+![PS-8 service board](images/service.png)
 
-### SEQUENCE
+The front panel only carries what belongs to the original instrument. The extras sit on a circuit board
+under the module row – like the service hatch of a control room.
+
+- **Open:** turn the **SERVICE** key (top right, next to SCRAM) or click one of the four screws at the
+  corners of the module row. The screws turn out and the cover flips up.
+- **Close:** turn the key back or click one of the four screw holes on the board.
+- The hatch stays open or closed with your project. Presets don't change it.
+
+By default everything here is neutral: 8 steps, no scale, no glide, LFO depth 0. The blue trimmers
+work like the knobs (drag, double-click resets); a small display under each one shows its value.
+
+### SEQ OPTIONS
 
 | Control | Function |
 |---|---|
@@ -251,21 +263,19 @@ A small readout under each knob shows its current value.
 
 | Control | Function |
 |---|---|
-| **RATE** | Speed, 0.05–40 Hz. With **SYNC** the same knob picks a note value: 4 bars, 2 bars, 1 bar, 1/2, 1/4, 1/8, 1/16, 1/32 |
+| **RATE** | Speed, 0.05–40 Hz. With **SYNC** the same trimmer picks a note value: 4 bars, 2 bars, 1 bar, 1/2, 1/4, 1/8, 1/16, 1/32 |
 | **SHAPE** | Triangle, square, falling saw, rising saw, sample & hold (random steps) |
 | **DEPTH** | Amount. 0 = off |
 | **TARGET** | **PITCH** (both VCOs, up to ±2 octaves), **VCO 2** (VCO 2 only), **CUTOFF** (up to ±4 octaves), **FM** (FM amount), **VOLUME** (tremolo) |
-| **FREE / SYNC** | Free running or in time with the DAW (with HOST and the DAW playing, the LFO is locked to the song position) |
+| **LFO SYNC** (jumper) | **FREE** or **SYNC**: click the jumper to move it. With SYNC, HOST and the DAW playing, the LFO is locked to the song position |
 
-### STATUS
+### STATUS (LEDs)
 
-| Control | Function |
+| LED | Function |
 |---|---|
-| **STEPS** 1-8 / 9-16 | Which eight steps the sequencer below shows |
 | **HOST LOCK** | Lit while PS-8 is locked to the DAW |
 | **MIDI IN** | Flashes on every incoming note |
 | **LFO** | Flashes with the LFO (when DEPTH > 0) |
-| **STEPS 9-16** | Lit while the sequencer plays steps 9–16 – even if you are looking at 1–8 |
 
 ---
 
@@ -444,10 +454,10 @@ are also built in as factory presets. Clock positions refer to the knob position
 - VCO 1 on SQR, FREQUENCY 10 o'clock, EG AMOUNT centre
 - FILTER: CUTOFF 9 o'clock, RESONANCE 3 o'clock, EG AMOUNT 2 o'clock
 - DECAY: FILTER 10 o'clock, VCA 1 o'clock
-- SCALE MINOR, GLIDE 9 o'clock, spread the PITCH knobs, LENGTH 16
+- Service board: SCALE MINOR, GLIDE 9 o'clock, LENGTH 16; then spread the PITCH knobs
 
 **Moving groove**
-- Any sound, plus LFO: TARGET CUTOFF, SHAPE TRIANGLE, SYNC, RATE 1 BAR, DEPTH 12 o'clock
+- Any sound, plus the LFO on the service board: TARGET CUTOFF, SHAPE TRIANGLE, jumper on SYNC, RATE 1 BAR, DEPTH 12 o'clock
 - Or TARGET PITCH, SHAPE S&H, RATE 1/16, DEPTH 9 o'clock for random pitches
 
 ---
@@ -516,7 +526,7 @@ These are the parameter names in your DAW's automation.
 | Step 1 … 16 Velocity | 0–100 % | 100 % |
 | Step 1 … 16 On | Off / On | On |
 
-The "Steps 1-8 / 9-16" view and the patch cables are saved with the project but cannot be automated.
+The "Steps 1-8 / 9-16" view, the open/closed service hatch and the patch cables are saved with the project but cannot be automated.
 
 ---
 

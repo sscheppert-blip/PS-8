@@ -24,8 +24,12 @@ cmake --build build
 
 The plugins are copied into the user plugin folders after building (`-DPS8_COPY_PLUGIN=OFF` to skip).
 The test runner also writes a demo pattern (`--render demo.wav`), a panel screenshot
-(`--snapshot panel.png`, add `patched` for a few demo cables), the app icon (`--icon design/icon.png`,
+(`--snapshot panel.png`, add `patched` for a few demo cables and/or `service` for the open service hatch),
+frames of the hatch animation (`--hatch-frames <folder>`), the app icon (`--icon design/icon.png`,
 1024 px, used for the Standalone app) and measures the CPU load (`--bench`).
+
+Manual images: `docs/images/panel.png` (`--snapshot … patched`) and `docs/images/service.png`
+(`--snapshot … patched service`), both downscaled to 1400 px.
 
 ## Validation (macOS)
 

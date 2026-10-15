@@ -112,6 +112,10 @@ namespace ps8::params
             juce::ParameterID { id::viewPage, 1 }, "Step View", false,
             juce::AudioParameterBoolAttributes().withAutomatable (false).withStringFromValueFunction (
                 [] (bool v, int) { return juce::String (v ? "Steps 9-16" : "Steps 1-8"); })));
+        layout.add (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { id::serviceOpen, 1 }, "Service Hatch", false,
+            juce::AudioParameterBoolAttributes().withAutomatable (false).withStringFromValueFunction (
+                [] (bool v, int) { return juce::String (v ? "Open" : "Closed"); })));
 
         add (layout, id::lfoRate, "LFO Rate", 0.0f, 1.0f, 0.45f,
              [] (float v, int) { return juce::String (dsp::lfoHz (v), 2) + " Hz"; });
