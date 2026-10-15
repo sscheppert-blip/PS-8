@@ -84,6 +84,10 @@ public:
     // changes whenever a saved state is loaded
     uint32_t getStateVersion() const noexcept { return stateVersion.load(); }
 
+    // this instance's component tolerances (ANALOG): random per instance, saved with the project
+    uint32_t getUnitSeed() const noexcept { return unitSeed.load(); }
+    void setUnitSeed (uint32_t seed) noexcept { unitSeed = seed; }
+
     static juce::String patchToString (const ps8::patch::Masks&);
     static ps8::patch::Masks patchFromString (const juce::String&);
     double getCpuLoad() const { return loadMeasurer.getLoadAsProportion(); }
@@ -102,6 +106,7 @@ private:
 
     static constexpr const char* patchProperty = "patch";
     static constexpr const char* presetProperty = "preset";
+    static constexpr const char* unitProperty = "unit";
 
     juce::AudioProcessorValueTreeState state;
 
@@ -113,6 +118,7 @@ private:
                           * noiseLevel, * noisePink, * noiseVcf,
                           * cutoff, * resonance, * vcfEg, * highPass,
                           * pitchDecay, * vcfDecay, * vcaDecay, * vcaSlow, * drive, * volume,
+                          * analog,
                           * tempo, * run, * hostClock, * rate, * pitchTarget, * length, * scale, * glide, * root, * swing,
                           * lfoRate, * lfoDivision, * lfoSync, * lfoShape, * lfoDepth, * lfoTarget;
         std::array<std::atomic<float>*, ps8::seq::maxSteps> pitch {}, velocity {}, on {}, ratchet {}, chance {};
@@ -126,6 +132,8 @@ private:
     std::atomic<uint32_t> patchVersion { 0 }, stateVersion { 0 };
     std::unique_ptr<ps8::Presets> presets;
     std::unique_ptr<ps8::Patterns> patterns;
+    std::atomic<uint32_t> unitSeed { 0 };
+    uint32_t appliedUnitSeed = 0;
     bool editorCreated = false;
     ps8::patch::EdgeDetector runGate, clockEdge, resetEdge;
 

@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <string_view>
 #include <vector>
 
@@ -1085,6 +1086,139 @@ static void testPatterns()
     }
 }
 
+//==============================================================================
+// Every factory preset plays something, without clipping (RUN on, own clock, 3 s)
+static void testFactorySounds()
+{
+    namespace id = ps8::params::id;
+    bool allOk = true;
+
+    for (const auto& preset : ps8::factoryPresets())
+    {
+        PS8AudioProcessor processor;
+        processor.setPlayConfigDetails (0, 2, 48000.0, 512);
+        processor.prepareToPlay (48000.0, 512);
+        processor.getPresets().load ({ preset.name, true, {} });
+        setParam (processor, id::hostClock, 0.0f);
+        setParam (processor, id::run, 1.0f);
+
+        const auto level = renderProcessor (processor, {}, 48000 * 3 / 512);
+        const auto ok = level > 0.03f && level < 1.2f;
+        allOk = allOk && ok;
+
+        if (! ok || juce::SystemStats::getEnvironmentVariable ("PS8_PRESET_LEVELS", {}).isNotEmpty())
+            std::printf ("      %-16s %-14s %6.1f dB%s\n", preset.category.toRawUTF8(), preset.name.toRawUTF8(),
+                         juce::Decibels::gainToDecibels (level, -100.0f), ok ? "" : "  <-- out of range");
+    }
+
+    check (ps8::factoryPresets().size() >= 40 && allOk, "every factory preset plays, without clipping");
+}
+
+//==============================================================================
+// ANALOG: component tolerances per instance, drift, hit-to-hit variation
+static void testAnalog()
+{
+    using ps8::dsp::Tolerances;
+    const ps8::dsp::Settings init;
+
+    auto render = [] (const ps8::dsp::Settings& s, const Tolerances& t, double seconds, const ps8::patch::Masks& masks = {})
+    {
+        ps8::dsp::Engine engine;
+        engine.setSettings (s);
+        engine.setTolerances (t);
+        engine.prepare (192000.0);
+        engine.setPatch (masks);
+        engine.trigger (1.0f, 0.0f);
+        std::vector<float> out ((size_t) (seconds * 192000.0));
+        engine.render (out.data(), (int) out.size());
+        return out;
+    };
+
+    // a unit whose VCO 1 is clearly off
+    uint32_t seed = 1;
+    while (std::abs (Tolerances::fromSeed (seed).vco1Detune) < 0.012f)
+        ++seed;
+    const auto unit = Tolerances::fromSeed (seed);
+
+    check (Tolerances::fromSeed (seed).cutoff == unit.cutoff && Tolerances::fromSeed (seed + 1).vco1Detune != unit.vco1Detune,
+           "tolerances come from the unit seed (same seed, same unit)");
+    check (render (init, unit, 0.5) == renderHit (init, 192000.0, 0.5), "ANALOG 0: every unit sounds like the nominal circuit");
+
+    // a long plain tone on VCO 1: the unit's detune shows up at ANALOG 100 %
+    {
+        auto s = init;
+        s.vco1Eg = s.vco2Eg = 0.0f;
+        s.vco2Level = s.noiseLevel = 0.0f;
+        s.cutoff = 1.0f;
+        s.vcaDecay = 0.9f;
+        const auto nominal = crossingRate (render (s, unit, 1.0), 192000.0, 19200, 192000);
+        s.analog = 1.0f;
+        const auto analog = crossingRate (render (s, unit, 1.0), 192000.0, 19200, 192000);
+        const auto cents = 1200.0 * std::log2 (analog / nominal);
+        check (std::abs (cents) > 6.0 && std::abs (cents) < 45.0 && (cents > 0.0) == (unit.vco1Detune > 0.0f),
+               "ANALOG 100 %: the unit's VCO is a little out of tune");
+    }
+
+    // with VCO RST every hit starts alike – except for ANALOG's hit-to-hit variation
+    {
+        auto s = init;
+        s.vcaDecay = 0.3f;
+        s.noiseLevel = 0.0f;
+
+        auto hitDifference = [&] (float analog)
+        {
+            s.analog = analog;
+            ps8::dsp::Engine engine;
+            engine.setSettings (s);
+            engine.setTolerances (unit);
+            engine.prepare (192000.0);
+            ps8::patch::Masks masks {};
+            masks[(size_t) ps8::patch::vcoResetIn] = (ps8::patch::Mask) (1u << ps8::patch::trigOut);
+            engine.setPatch (masks);
+
+            std::vector<float> idle (100000), first (9600), second (9600);
+            engine.render (idle.data(), (int) idle.size());
+            engine.trigger (1.0f, 0.0f);
+            engine.render (first.data(), (int) first.size());
+            engine.render (idle.data(), (int) idle.size() - (int) first.size());
+            engine.trigger (1.0f, 0.0f);
+            engine.render (second.data(), (int) second.size());
+
+            float difference = 0.0f;
+            for (size_t i = 480; i < first.size(); ++i)
+                difference = std::max (difference, std::abs (first[i] - second[i]));
+            return difference / peak (first);
+        };
+
+        check (hitDifference (0.0f) < 0.01f && hitDifference (1.0f) > 0.02f, "ANALOG makes every hit a little different");
+    }
+
+    // extreme settings stay finite with ANALOG full
+    {
+        auto s = init;
+        s.analog = 1.0f;
+        s.resonance = 1.0f;
+        s.fmAmount = 1.0f;
+        s.vco1Eg = s.vco2Eg = s.vcfEg = 1.0f;
+        s.drive = 1.0f;
+        const auto out = render (s, unit, 2.0);
+        check (allFinite (out) && peak (out) < 3.0f, "ANALOG 100 % with extreme settings stays finite");
+    }
+
+    // every instance is its own unit, and a project keeps it
+    {
+        PS8AudioProcessor a, b;
+        a.setUnitSeed (4711);
+        juce::MemoryBlock block;
+        a.getStateInformation (block);
+        b.setStateInformation (block.getData(), (int) block.getSize());
+        check (b.getUnitSeed() == 4711, "the unit (component tolerances) is saved with the project");
+
+        PS8AudioProcessor c, d;
+        check (c.getUnitSeed() != d.getUnitSeed(), "two new instances are two different units");
+    }
+}
+
 static void testDoubleClick()
 {
     PS8AudioProcessor processor;
@@ -1436,6 +1570,8 @@ int main (int argc, char** argv)
     testPatchbayMouse();
     testPresets();
     testPatterns();
+    testAnalog();
+    testFactorySounds();
     testDoubleClick();
     testRatchetAndChance();
     testTextConversions();

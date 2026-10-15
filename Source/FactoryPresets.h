@@ -14,6 +14,7 @@ namespace ps8
         juce::String name;
         std::vector<std::pair<juce::String, float>> values;
         juce::String patch;   // cables, as in the saved state ("vcaEg>tempo …")
+        juce::String category;
     };
 
     const std::vector<FactoryPreset>& factoryPresets();

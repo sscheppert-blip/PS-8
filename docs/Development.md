@@ -32,6 +32,9 @@ frames of the hatch animation (`--hatch-frames <folder>`), the app icon (`--icon
 Manual images: `docs/images/panel.png` (`--snapshot … patched`) and `docs/images/service.png`
 (`--snapshot … patched service`), both downscaled to 1400 px.
 
+The tests play every factory preset for 3 s and check that it sounds without clipping; with the
+environment variable `PS8_PRESET_LEVELS=1` they print the peak level of each preset.
+
 ## Validation (macOS)
 
 Before a release, validate the installed plugins:

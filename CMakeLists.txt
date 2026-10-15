@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(PS8 VERSION 0.2.0 LANGUAGES C CXX)
+project(PS8 VERSION 0.3.0 LANGUAGES C CXX)
 
 option(PS8_BUILD_TESTS "Build the offline tests" ON)
 option(PS8_COPY_PLUGIN "Copy the built plugins into the user's plugin folders" ON)
@@ -45,7 +45,7 @@ juce_add_plugin(PS8
     COPY_PLUGIN_AFTER_BUILD  ${PS8_COPY_PLUGIN}
     VST3_CATEGORIES          Instrument Drum Synth
     AU_MAIN_TYPE             kAudioUnitType_MusicDevice
-    DESCRIPTION              "Analog-style percussion synthesizer with 8-step sequencer")
+    DESCRIPTION              "Analog-style percussion synthesizer with step sequencer and patchbay")
 
 set(PS8_SOURCES
     Source/dsp/Engine.cpp

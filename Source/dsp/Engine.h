@@ -35,6 +35,20 @@ namespace ps8::dsp
         float lfoHz = 2.0f, lfoDepth = 0.0f;                         // depth 0..1
         LfoShape lfoShape = LfoShape::triangle;
         LfoTarget lfoTarget = LfoTarget::cutoff;
+        float analog = 0.0f;   // 0..1: component tolerances, thermal drift, hit-to-hit variation
+    };
+
+    // Component tolerances of one "unit" (as in MB-11): every instance behaves like its own piece of
+    // hardware. Deviations at full ANALOG; ANALOG 0 is the nominal circuit.
+    struct Tolerances
+    {
+        float vco1Detune = 0.0f, vco2Detune = 0.0f;   // octaves
+        float eg1Depth = 0.0f, eg2Depth = 0.0f;       // relative
+        float decay[3] {};                            // relative: pitch, filter, VCA
+        float cutoff = 0.0f;                          // octaves
+        float resonance = 0.0f;                       // relative
+
+        static Tolerances fromSeed (uint32_t seed) noexcept;
     };
 
     // Control mappings (also used for the parameter displays and the tests).
@@ -52,6 +66,7 @@ namespace ps8::dsp
     public:
         void prepare (double sampleRate) noexcept;
         void setSettings (const Settings& s) noexcept { settings = s; }
+        void setTolerances (const Tolerances& t) noexcept { tolerances = t; }
 
         // Cables, one output mask per input (see Patch.h)
         void setPatch (const patch::Masks& masks) noexcept;
@@ -118,7 +133,9 @@ namespace ps8::dsp
         };
 
         void fireEnvelopes (float newVelocity) noexcept;
-        float envelopeCoef (float decayKnob) const noexcept;
+        float envelopeCoef (float decayKnob, int envelope) const noexcept;   // envelope: 0 pitch, 1 filter, 2 VCA
+        float analogRandom() noexcept;
+        void updateDrift() noexcept;
         void updateDecays() noexcept;
         float renderVca() noexcept;
         float renderLfo (float increment) noexcept;
@@ -143,6 +160,7 @@ namespace ps8::dsp
             float target1 = 0, target2 = 0, targetCutoff = 0, eg1 = 0, eg2 = 0, egVcf = 0, glideCoef = 1;
             float stepOn1 = 0, stepOn2 = 0, lfoIncrement = 0, lfoPitch1 = 0, lfoPitch2 = 0, lfoCutoff = 0;
             float lfoFm = 0, lfoVolume = 0, targetFm = 0, targetNoise = 0, maxOct = 0, maxCutoffOct = 0;
+            float detune1 = 0, detune2 = 0, cutoffOffset = 0, resonanceScale = 1, pitchDrift = 0, cutoffDrift = 0;
         } block;
 
         // patchbay
@@ -155,6 +173,13 @@ namespace ps8::dsp
         float stepVelocity = 1.0f, mute = 1.0f, decayScale = 1.0f;
         bool muting = false, extConnected = false;
         float extTarget = 0.0f, extValue = 0.0f;
+
+        // ANALOG: tolerances, slow drift (VCO 1, VCO 2, cutoff) and per-hit variation
+        Tolerances tolerances;
+        float drift[3] {}, driftTarget[3] {};
+        int driftCountdown[3] {};
+        float driftCoef = 0.0f, hitPitch = 0.0f, hitDecay = 0.0f;
+        uint32_t analogRng = 0x9e3779b9u;
 
         // ladder filter states
         float ladder[4] {};

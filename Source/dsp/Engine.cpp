@@ -56,6 +56,31 @@ namespace ps8::dsp
         }
     }
 
+    Tolerances Tolerances::fromSeed (uint32_t seed) noexcept
+    {
+        // -1 … 1 from a hash of the seed, a different one for each part
+        auto spread = [seed] (uint32_t part)
+        {
+            auto h = seed ^ (part * 0x9e3779b9u);
+            h ^= h >> 16; h *= 0x7feb352du;
+            h ^= h >> 15; h *= 0x846ca68bu;
+            h ^= h >> 16;
+            return (float) (h & 0xffffu) / 32767.5f - 1.0f;
+        };
+
+        Tolerances t;
+        t.vco1Detune = 0.02f * spread (1);    // ±24 cents
+        t.vco2Detune = 0.02f * spread (2);
+        t.eg1Depth   = 0.06f * spread (3);
+        t.eg2Depth   = 0.06f * spread (4);
+        t.decay[0]   = 0.10f * spread (5);
+        t.decay[1]   = 0.10f * spread (6);
+        t.decay[2]   = 0.10f * spread (7);
+        t.cutoff     = 0.20f * spread (8);    // ±0.2 octaves
+        t.resonance  = 0.08f * spread (9);
+        return t;
+    }
+
     float vcoHz (float v) noexcept         { return 8.0f * std::exp2 (10.0f * v); }
     float cutoffHz (float v) noexcept      { return 20.0f * std::exp2 (10.0f * v); }
     float decaySeconds (float v) noexcept  { return 0.003f * std::pow (10.0f / 0.003f, v); }
@@ -97,6 +122,11 @@ namespace ps8::dsp
         trigEdge = vcoResetEdge = {};
         trigPulseRemaining = 0;
         decayScale = 1.0f;
+        driftCoef = (float) (1.0 - std::exp (-1.0 / (1.5 * sampleRate)));
+        std::fill (std::begin (drift), std::end (drift), 0.0f);
+        std::fill (std::begin (driftTarget), std::end (driftTarget), 0.0f);
+        std::fill (std::begin (driftCountdown), std::end (driftCountdown), 0);
+        hitPitch = hitDecay = 0.0f;
         muting = false;
         mute = 1.0f;
         extValue = extTarget = 0.0f;
@@ -139,6 +169,18 @@ namespace ps8::dsp
     {
         velocity = std::clamp (newVelocity + inputs[patch::velocityIn], 0.0f, 1.0f);
         muting = false;
+
+        // ANALOG: no two hits are quite the same (pitch, decay, level)
+        if (const auto a = settings.analog; a > 0.0f)
+        {
+            hitPitch = a * 0.004f * analogRandom();
+            hitDecay = a * 0.03f * analogRandom();
+            velocity = std::clamp (velocity * (1.0f + a * 0.03f * analogRandom()), 0.0f, 1.0f);
+        }
+        else
+        {
+            hitPitch = hitDecay = 0.0f;
+        }
 
         // like the original, softer hits also decay a little faster (full velocity: the knob's time)
         decayScale = 0.7f + 0.3f * velocity;
@@ -247,16 +289,40 @@ namespace ps8::dsp
         return out * 0.2f;
     }
 
-    float Engine::envelopeCoef (float decayKnob) const noexcept
+    float Engine::envelopeCoef (float decayKnob, int envelope) const noexcept
     {
-        return decayCoef (decaySeconds (decayKnob) * decayScale, sampleRate);
+        const auto tolerance = 1.0f + settings.analog * tolerances.decay[envelope] + hitDecay;
+        return decayCoef (decaySeconds (decayKnob) * decayScale * tolerance, sampleRate);
     }
 
     void Engine::updateDecays() noexcept
     {
-        pitchEnv.coef = envelopeCoef (settings.pitchDecay);
-        vcfEnv.coef = envelopeCoef (settings.vcfDecay);
-        vca.coef = envelopeCoef (settings.vcaDecay);
+        pitchEnv.coef = envelopeCoef (settings.pitchDecay, 0);
+        vcfEnv.coef = envelopeCoef (settings.vcfDecay, 1);
+        vca.coef = envelopeCoef (settings.vcaDecay, 2);
+    }
+
+    float Engine::analogRandom() noexcept
+    {
+        analogRng ^= analogRng << 13;
+        analogRng ^= analogRng >> 17;
+        analogRng ^= analogRng << 5;
+        return (float) (int32_t) analogRng * (1.0f / 2147483648.0f);
+    }
+
+    // slow random walk, like the temperature drift of the expo converters and the filter
+    void Engine::updateDrift() noexcept
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            if (--driftCountdown[i] <= 0)
+            {
+                driftTarget[i] = analogRandom();
+                driftCountdown[i] = (int) (sampleRate * (0.5 + 0.5 * (analogRandom() + 1.0f)));
+            }
+
+            drift[i] += (driftTarget[i] - drift[i]) * driftCoef;
+        }
     }
 
     void Engine::render (float* out, int numSamples) noexcept
@@ -277,8 +343,15 @@ namespace ps8::dsp
         b.target1 = std::log2 (vcoHz (p.vco1Freq));
         b.target2 = std::log2 (vcoHz (p.vco2Freq));
         b.targetCutoff = std::log2 (cutoffHz (p.cutoff));
-        b.eg1 = pitchEgOctaves (p.vco1Eg);
-        b.eg2 = pitchEgOctaves (p.vco2Eg);
+        const auto a = p.analog;
+        b.eg1 = pitchEgOctaves (p.vco1Eg) * (1.0f + a * tolerances.eg1Depth);
+        b.eg2 = pitchEgOctaves (p.vco2Eg) * (1.0f + a * tolerances.eg2Depth);
+        b.detune1 = a * tolerances.vco1Detune;
+        b.detune2 = a * tolerances.vco2Detune;
+        b.cutoffOffset = a * tolerances.cutoff;
+        b.resonanceScale = 1.0f + a * tolerances.resonance;
+        b.pitchDrift = a * 0.01f;     // ±12 cents
+        b.cutoffDrift = a * 0.05f;
         b.egVcf = vcfEgOctaves (p.vcfEg);
         const auto glideTime = glideSeconds (p.glide);
         b.glideCoef = glideTime < 0.001f ? 1.0f : (float) (1.0 - std::exp (-1.0 / (glideTime * sampleRate)));
@@ -330,18 +403,21 @@ namespace ps8::dsp
                     fireEnvelopes (stepVelocity);
 
                 if (isPatched (vcoDecayIn))
-                    pitchEnv.coef = envelopeCoef (unit (p.pitchDecay + cv (vcoDecayIn)));
+                    pitchEnv.coef = envelopeCoef (unit (p.pitchDecay + cv (vcoDecayIn)), 0);
 
                 if (isPatched (vcfDecayIn))
-                    vcfEnv.coef = envelopeCoef (unit (p.vcfDecay + cv (vcfDecayIn)));
+                    vcfEnv.coef = envelopeCoef (unit (p.vcfDecay + cv (vcfDecayIn)), 1);
 
                 if (isPatched (vcaDecayIn))
-                    vca.coef = envelopeCoef (unit (p.vcaDecay + cv (vcaDecayIn)));
+                    vca.coef = envelopeCoef (unit (p.vcaDecay + cv (vcaDecayIn)), 2);
 
                 // VCO RST: both oscillators restart at the triangle's rising zero crossing
                 if (isPatched (vcoResetIn) && vcoResetEdge.process (cv (vcoResetIn)))
                     osc1.phase = osc2.phase = 0.25f;
             }
+
+            if (p.analog > 0.0f)
+                updateDrift();
 
             const auto pe = pitchEnv.next();
             const auto fe = vcfEnv.next();
@@ -351,9 +427,9 @@ namespace ps8::dsp
 
             // oscillators (VCO CV inputs: 1 V/oct)
             const auto oct1 = std::min (vco1Oct.next (b.target1, c) + b.eg1 * pe + b.stepOn1 * step + b.lfoPitch1 * mod
-                                            + 5.0f * cv (vco1CvIn), b.maxOct);
+                                            + 5.0f * cv (vco1CvIn) + b.detune1 + b.pitchDrift * drift[0] + hitPitch, b.maxOct);
             const auto oct2 = std::min (vco2Oct.next (b.target2, c) + b.eg2 * pe + b.stepOn2 * step + b.lfoPitch2 * mod
-                                            + 5.0f * cv (vco2CvIn), b.maxOct);
+                                            + 5.0f * cv (vco2CvIn) + b.detune2 + b.pitchDrift * drift[1] + hitPitch, b.maxOct);
             const auto targetFm = ! isPatched (fmAmountIn) ? b.targetFm
                                                            : (p.fmOn ? 4.0f * squared (unit (p.fmAmount + cv (fmAmountIn))) : 0.0f);
             const auto inc1 = std::exp2 (oct1) * invSampleRate;
@@ -386,11 +462,12 @@ namespace ps8::dsp
 
             // 4-pole ladder (zero-delay feedback, saturating input stage)
             const auto cutoffOctave = std::clamp (cutoffOct.next (b.targetCutoff, c) + b.egVcf * fe
-                                                      + 3.0f * noiseMod.next (p.noiseVcf * p.noiseVcf, c) * vcfMod + b.lfoCutoff * mod,
+                                                      + 3.0f * noiseMod.next (p.noiseVcf * p.noiseVcf, c) * vcfMod + b.lfoCutoff * mod
+                                                      + b.cutoffOffset + b.cutoffDrift * drift[2],
                                                   3.3f, b.maxCutoffOct);
             const auto g = std::tan (pi * std::exp2 (cutoffOctave) * invSampleRate);
             const auto G = g / (1.0f + g);
-            const auto k = res.next (4.1f * p.resonance, c);
+            const auto k = res.next (4.1f * p.resonance * b.resonanceScale, c);
             const auto oneMinusG = 1.0f - G;
             const auto sigma = G * G * G * oneMinusG * ladder[0] + G * G * oneMinusG * ladder[1] + G * oneMinusG * ladder[2] + oneMinusG * ladder[3];
             // a trace of noise lets the filter start ringing on its own, like the circuit does

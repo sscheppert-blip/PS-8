@@ -2,7 +2,7 @@
 
 Ausführlich: [Handbuch](Handbuch.md).
 
-PS-8 ist ein Percussion-Synth mit eingebautem 8-Step-Sequencer. Statt fester Drum-Sounds baust du
+PS-8 ist ein Percussion-Synth mit eingebautem Step-Sequencer (bis 16 Steps, 8 Patterns pro Preset). Statt fester Drum-Sounds baust du
 jeden Klang selbst aus zwei Oszillatoren, Rauschen, Filter und drei Decay-Hüllkurven – und der
 Sequencer spielt dazu pro Step eine eigene Tonhöhe und Lautstärke.
 
@@ -61,6 +61,7 @@ die Haube klappt hoch, darunter liegt die Service-Platine mit blauen Trimmpotis.
 | **LFO SHAPE** | Dreieck, Rechteck, Sägezahn ab/auf, Sample & Hold (Zufall) |
 | **LFO DEPTH** | Stärke (0 = aus) |
 | **LFO TARGET** | Ziel: Pitch beider VCOs, nur VCO 2, Cutoff, FM-Stärke, Lautstärke |
+| **ANALOG** | 0 % = ideale Schaltung. Aufgedreht: leicht verstimmte VCOs, Drift, jeder Schlag minimal anders – jede Instanz ist ein eigenes „Gerät“ |
 | **LEDs** | HOST LOCK = läuft im DAW-Takt, MIDI IN = Note kommt an, LFO blinkt mit |
 
 Leuchttaster hinter der eingestellten Länge sind abgedunkelt.

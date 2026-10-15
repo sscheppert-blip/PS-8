@@ -32,6 +32,7 @@ namespace ps8::params
         inline constexpr const char* vcaSlow    = "vcaSlowAttack";
         inline constexpr const char* drive      = "drive";
         inline constexpr const char* volume     = "volume";
+        inline constexpr const char* analog     = "analog";
 
         inline constexpr const char* tempo       = "tempo";
         inline constexpr const char* run         = "run";

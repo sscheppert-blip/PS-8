@@ -37,6 +37,8 @@ PS8AudioProcessor::PS8AudioProcessor()
     refs.lfoSync = raw (id::lfoSync);       refs.lfoShape = raw (id::lfoShape);
     refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
 
+    refs.analog = raw (id::analog);
+    unitSeed = (uint32_t) juce::Random::getSystemRandom().nextInt();
     presets = std::make_unique<ps8::Presets> (*this);
     patterns = std::make_unique<ps8::Patterns> (state);
 
@@ -68,6 +70,8 @@ void PS8AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     extBuffer.setSize (1, maxChunk);
 
     engine.setSettings (readSettings ((double) refs.tempo->load()));
+    appliedUnitSeed = unitSeed.load();
+    engine.setTolerances (ps8::dsp::Tolerances::fromSeed (appliedUnitSeed));
     engine.prepare (sampleRate * oversamplingFactor);
     sequencer.prepare (sampleRate);
     hostSampleRate = sampleRate;
@@ -106,6 +110,7 @@ ps8::dsp::Settings PS8AudioProcessor::readSettings (double bpm) const noexcept
     s.cutoff = refs.cutoff->load();         s.resonance = refs.resonance->load();
     s.vcfEg = refs.vcfEg->load();           s.highPass = on (refs.highPass);
     s.pitchDecay = refs.pitchDecay->load(); s.vcfDecay = refs.vcfDecay->load(); s.vcaDecay = refs.vcaDecay->load();
+    s.analog = refs.analog->load();
     s.vcaSlowAttack = on (refs.vcaSlow);    s.drive = refs.drive->load();       s.volume = refs.volume->load();
     s.pitchTarget = (ps8::dsp::PitchTarget) juce::jlimit (0, 2, juce::roundToInt (refs.pitchTarget->load()));
     s.glide = refs.glide->load();
@@ -303,6 +308,12 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     else
     {
         hostWasRunning = false;
+    }
+
+    if (const auto seed = unitSeed.load(); seed != appliedUnitSeed)
+    {
+        appliedUnitSeed = seed;
+        engine.setTolerances (ps8::dsp::Tolerances::fromSeed (seed));
     }
 
     display.bpm = (float) bpm;
@@ -541,6 +552,7 @@ void PS8AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     auto tree = state.copyState();
     tree.setProperty (patchProperty, patchToString (getPatch()), nullptr);
     tree.setProperty (presetProperty, presets->getStateName(), nullptr);
+    tree.setProperty (unitProperty, (juce::int64) unitSeed.load(), nullptr);
     tree.appendChild (patterns->toTree(), nullptr);
 
     if (const auto xml = tree.createXml())
@@ -565,8 +577,12 @@ void PS8AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
             const auto isUser = preset.startsWith ("user:");
             presets->setStateName (isUser ? preset.substring (5) : preset, ! isUser);
 
+            if (tree.hasProperty (unitProperty))
+                unitSeed = (uint32_t) (juce::int64) tree.getProperty (unitProperty);
+
             tree.removeProperty (patchProperty, nullptr);
             tree.removeProperty (presetProperty, nullptr);
+            tree.removeProperty (unitProperty, nullptr);
 
             const auto savedPatterns = tree.getChildWithName ("PATTERNS");
             tree.removeChild (savedPatterns, nullptr);

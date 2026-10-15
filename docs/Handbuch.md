@@ -289,7 +289,7 @@ wie hinter der Wartungsklappe einer Leitwarte. Alles, was du beim Spielen des Se
 - **Schließen:** den Schlüssel zurückdrehen oder auf eines der vier Schraubenlöcher der Platine klicken.
 - Ob die Haube offen ist, wird mit dem Projekt gespeichert. Presets ändern daran nichts.
 
-Ab Werk ist hier alles neutral: keine Skala, kein Glide, kein Swing, LFO-Stärke 0. Die blauen Trimmpotis
+Ab Werk ist hier alles neutral: keine Skala, kein Glide, kein Swing, LFO-Stärke 0, ANALOG 0 %. Die blauen Trimmpotis
 bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt eine kleine Anzeige den Wert.
 
 ### SEQ OPTIONS
@@ -310,6 +310,17 @@ bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt e
 | **DEPTH** | Stärke. 0 = aus |
 | **TARGET** | **PITCH** (beide VCOs, bis ±2 Oktaven), **VCO 2** (nur VCO 2), **CUTOFF** (bis ±4 Oktaven), **FM** (FM-Stärke), **VOLUME** (Tremolo) |
 | **LFO SYNC** (Jumper) | **FREE** oder **SYNC**: Klick auf den Jumper steckt ihn um. Bei SYNC, HOST und laufender DAW hängt der LFO fest am Takt |
+
+### ANALOG
+
+| Element | Funktion |
+|---|---|
+| **AMOUNT** | Wie „analog“ sich dieses PS-8 verhält. **0 %** (ab Werk) ist die ideale Schaltung, genau wie bisher. Aufgedreht wachsen drei Dinge mit: **Bauteil-Toleranzen** – die VCOs sind gegeneinander leicht verstimmt, jede Hüllkurve, das Filter und seine Resonanz liegen ein bisschen daneben; **Temperatur-Drift** – Tonhöhe und Cutoff wandern langsam; **Streuung von Schlag zu Schlag** – Tonhöhe, Decay und Pegel weichen bei jedem Schlag minimal ab |
+
+Jede PS-8-Instanz ist ein eigenes „Gerät“ mit eigenen Toleranzen, wie zwei Exemplare derselben Hardware.
+Das Gerät wird mit dem Projekt gespeichert, ein Song behält also seinen Klang; eine neue Instanz ist ein
+neues Gerät. Bei vollem AMOUNT sind die VCOs bis etwa ±24 Cent verstimmt, die Decays bis ±10 %, der Cutoff
+bis ±0,2 Oktaven.
 
 ### STATUS (LEDs)
 
@@ -414,12 +425,22 @@ Patch-Kabel. **Nicht** dabei sind **RUN/STOP** und
 **Werks-Presets** sind eingebaut und schreibgeschützt. Willst du eine geänderte Fassung behalten,
 drück **SAVE** und gib ihr einen Namen. Mit dabei:
 
-| Preset | |
+| Kategorie | Presets |
 |---|---|
-| Deep Kick, Tom Melody, Snare, Closed Hat, Open Hat, Laser Zap, Acid Line | Die Rezepte aus Kapitel 10 (Kick und Tom mit TRIG → VCO RST für gleichmäßige Schläge) |
-| Moving Groove, Random Pitches | LFO auf den Cutoff / zufällige Step-Tonhöhen, im DAW-Takt |
-| Rolls (INT) | VCA EG → TEMPO. Den Takt auf **INT** stellen – der TEMPO-Eingang wirkt nur mit dem eigenen Takt |
-| Growl, Drone, Feedback, Melodic Filter | Die Patch-Ideen aus Kapitel 7 |
+| **KICK** | Deep Kick, Punch Kick, Long Boom, Distorted Kick, Worn Kick (ANALOG hoch, freilaufender VCO) |
+| **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
+| **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (Ratchets), Rim Shot, Ghost Notes (Velocity) |
+| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |
+| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc |
+| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG voll) |
+| **LEAD / FX** | Laser Zap, Bleeps, Ping Pong, Alarm, Robot Talk, Sweep Up, Static Rain |
+| **GROOVE** | Moving Groove, Random Pitches, Ratchet Rolls, Five Step (Polymetrik) |
+| **PATCHBAY** | Rolls (INT), Growl, Drone, Feedback, Melodic Filter, Filter Ping, Accent Filter, VCO Clock, Chaos Engine |
+
+Kicks, Toms und die gestimmte Percussion haben **TRIG → VCO RST** gesteckt, damit jeder Schlag gleich
+klingt. **Rolls (INT)** braucht den Takt auf **INT** – der TEMPO-Eingang wirkt nur mit dem eigenen Takt.
+**VCO Clock** lässt VCO 1 den Sequencer takten (Kabel in ADV/CLK), RUN muss also an sein. Die Presets setzen
+Klang und Pattern; für die Sequenz **RUN** einschalten.
 
 **Wo deine Presets liegen** – eine Datei pro Preset (`.ps8preset`, reines XML). So kannst du sie
 sichern, auf einen anderen Rechner kopieren oder weitergeben:
@@ -551,6 +572,7 @@ So heißen die Parameter in der Automation der DAW.
 | VCA Attack | Fast / Slow | Fast |
 | Drive | 0–100 % | 0 % |
 | Volume | 0–100 % | 70 % |
+| Analog | 0–100 % | 0 % |
 | Tempo | 20–300 BPM | 120 BPM |
 | Run | Stop / Run | Stop |
 | Clock | Internal / Host | Host |

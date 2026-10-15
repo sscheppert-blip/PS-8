@@ -189,8 +189,22 @@ namespace ps8::ui
         menu.addItem (initId, Presets::initName, true, here.factory && here.name == Presets::initName);
         menu.addSectionHeader ("FACTORY");
 
-        for (int i = 0; i < (int) factory.size(); ++i)
-            menu.addItem (factoryBase + i, factory[(size_t) i].name, true, here.factory && here.name == factory[(size_t) i].name);
+        // one submenu per category, in the order the presets are listed
+        for (int i = 0; i < (int) factory.size();)
+        {
+            const auto category = factory[(size_t) i].category;
+            juce::PopupMenu sub;
+            bool holdsCurrent = false;
+
+            for (; i < (int) factory.size() && factory[(size_t) i].category == category; ++i)
+            {
+                const auto ticked = here.factory && here.name == factory[(size_t) i].name;
+                holdsCurrent = holdsCurrent || ticked;
+                sub.addItem (factoryBase + i, factory[(size_t) i].name, true, ticked);
+            }
+
+            menu.addSubMenu (category, sub, true, nullptr, holdsCurrent);
+        }
 
         menu.addSectionHeader ("USER");
 

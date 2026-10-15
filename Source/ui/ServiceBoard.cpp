@@ -402,11 +402,14 @@ namespace ps8::ui
         static_cast<Jumper&> (sync).place ({ 880.0f, trimmerY + 4.0f });
         addAndMakeVisible (sync);
 
+        // analog behaviour: tolerances, drift, hit-to-hit variation
+        trimmer (id::analog, "AMOUNT", 1120.0f, 11);
+
         // status LEDs
         auto led = [this] (const char* caption, juce::Colour colour, float y)
         {
             auto& l = static_cast<Led&> (*parts.emplace_back (std::make_unique<Led> (caption, colour)));
-            l.setBounds (968, juce::roundToInt (y) - 9, 170, 18);
+            l.setBounds (960, juce::roundToInt (y) - 9, 98, 18);
             addAndMakeVisible (l);
             return &l;
         };
@@ -495,12 +498,14 @@ namespace ps8::ui
 
         drawTrace (g, { { 30.0f, 246.0f }, { 1158.0f, 246.0f } });
         drawTrace (g, { { 880.0f, trimmerY + 30.0f }, { 880.0f, 170.0f }, { 960.0f, 170.0f }, { 960.0f, 128.0f } });
-        drawTrace (g, { { 1160.0f, 40.0f }, { 1160.0f, 200.0f }, { 1130.0f, 230.0f } });
+        drawTrace (g, { { 1120.0f + trimmerRadius + 4.0f, trimmerY }, { 1150.0f, trimmerY }, { 1150.0f, 186.0f },
+                        { 1100.0f, 200.0f } });
 
         // sections
         drawSection (g, { 20.0f, 34.0f, 412.0f, 140.0f }, "SEQ OPTIONS");
         drawSection (g, { 446.0f, 34.0f, 488.0f, 140.0f }, "LFO");
-        drawSection (g, { 948.0f, 34.0f, 220.0f, 140.0f }, "STATUS");
+        drawSection (g, { 948.0f, 34.0f, 114.0f, 140.0f }, "STATUS");
+        drawSection (g, { 1072.0f, 34.0f, 96.0f, 140.0f }, "ANALOG");
 
         // parts
         drawChip (g, { 70.0f, 198.0f, 96.0f, 30.0f }, 8, "PS8-SEQ");
@@ -520,9 +525,9 @@ namespace ps8::ui
         drawLabel (g, "PS-8 SERVICE BOARD  REV 2.1", { 30.0f, 18.0f }, 11.0f, colours::silkscreen, juce::Justification::centredLeft);
         drawLabel (g, "EXTRAS - QUALIFIED PERSONNEL ONLY", { 1150.0f, 18.0f }, 10.0f, colours::silkscreen.withAlpha (0.8f),
                    juce::Justification::centredRight);
-        drawLabel (g, "TP1", { 1132.0f, 160.0f }, 9.0f, colours::silkscreen.withAlpha (0.8f));
+        drawLabel (g, "TP1", { 1040.0f, 160.0f }, 9.0f, colours::silkscreen.withAlpha (0.8f));
         g.setColour (juce::Colour (0xffd6b25a));
-        g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ 1132.0f, 146.0f }));
+        g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ 1040.0f, 146.0f }));
 
         for (auto p : Hood::screwPositions (bounds))
             drawHole (g, p);

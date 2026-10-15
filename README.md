@@ -16,8 +16,9 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 - Patchbay with 26 jacks: re-route envelopes, oscillators, sequencer clock, run and reset by cable;
   feedback and audio-rate patches allowed, DAW side-chain into EXT IN
 - 8 patterns per preset, step tools: shift, copy/paste a page, randomise, undo
-- Presets: 14 factory presets, save your own (incl. cables) as plain files in your user folder;
-  the window size is remembered
+- ANALOG trimmer: per-instance component tolerances, thermal drift and hit-to-hit variation
+- Presets: 49 factory presets in 9 categories; save your own (incl. cables and patterns) as plain
+  files in your user folder; the window size is remembered
 - SCRAM button: stops the sequencer and silences the voice
 - Oversampled (4× up to 48 kHz, 2× up to 96 kHz)
 

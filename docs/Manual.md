@@ -280,7 +280,7 @@ sequencer (rate, length, ratchet, chance) stays on the front.
 - **Close:** turn the key back or click one of the four screw holes on the board.
 - The hatch stays open or closed with your project. Presets don't change it.
 
-By default everything here is neutral: no scale, no glide, no swing, LFO depth 0. The blue trimmers
+By default everything here is neutral: no scale, no glide, no swing, LFO depth 0, ANALOG 0 %. The blue trimmers
 work like the knobs (drag, double-click resets); a small display under each one shows its value.
 
 ### SEQ OPTIONS
@@ -301,6 +301,16 @@ work like the knobs (drag, double-click resets); a small display under each one 
 | **DEPTH** | Amount. 0 = off |
 | **TARGET** | **PITCH** (both VCOs, up to ±2 octaves), **VCO 2** (VCO 2 only), **CUTOFF** (up to ±4 octaves), **FM** (FM amount), **VOLUME** (tremolo) |
 | **LFO SYNC** (jumper) | **FREE** or **SYNC**: click the jumper to move it. With SYNC, HOST and the DAW playing, the LFO is locked to the song position |
+
+### ANALOG
+
+| Control | Function |
+|---|---|
+| **AMOUNT** | How "analog" this PS-8 behaves. **0 %** (default) is the ideal circuit, exactly as before. Turned up, three things grow together: **component tolerances** – the VCOs are a little out of tune against each other, every envelope, the filter and its resonance are a touch off; **thermal drift** – pitch and cutoff wander slowly; **hit-to-hit variation** – pitch, decay and level differ slightly from hit to hit |
+
+Every PS-8 instance is its own "unit" with its own tolerances, like two pieces of the same hardware. The
+unit is saved with the project, so a song keeps its sound; a new instance is a new unit. At full AMOUNT
+the VCOs are up to about ±24 cents off, decays up to ±10 %, the cutoff up to ±0.2 octaves.
 
 ### STATUS (LEDs)
 
@@ -406,12 +416,22 @@ cables. **Not** included are **RUN/STOP** and
 **Factory presets** are built in and read-only. To keep a changed version, press **SAVE** and give it a
 name. They are:
 
-| Preset | |
+| Category | Presets |
 |---|---|
-| Deep Kick, Tom Melody, Snare, Closed Hat, Open Hat, Laser Zap, Acid Line | The recipes from chapter 10 (kick and tom with TRIG → VCO RST for even hits) |
-| Moving Groove, Random Pitches | LFO on cutoff / random step pitches, in time with the DAW |
-| Rolls (INT) | VCA EG → TEMPO. Switch the clock to **INT** – the TEMPO input only works with the own clock |
-| Growl, Drone, Feedback, Melodic Filter | The patch ideas from chapter 7 |
+| **KICK** | Deep Kick, Punch Kick, Long Boom, Distorted Kick, Worn Kick (ANALOG up, free-running VCO) |
+| **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
+| **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (ratchets), Rim Shot, Ghost Notes (velocity) |
+| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |
+| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc |
+| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG full) |
+| **LEAD / FX** | Laser Zap, Bleeps, Ping Pong, Alarm, Robot Talk, Sweep Up, Static Rain |
+| **GROOVE** | Moving Groove, Random Pitches, Ratchet Rolls, Five Step (polymeter) |
+| **PATCHBAY** | Rolls (INT), Growl, Drone, Feedback, Melodic Filter, Filter Ping, Accent Filter, VCO Clock, Chaos Engine |
+
+Kicks, toms and the tuned percussion come with **TRIG → VCO RST** patched, so every hit sounds the same.
+**Rolls (INT)** needs the clock on **INT** – the TEMPO input only works with the own clock. **VCO Clock**
+lets VCO 1 clock the sequencer (cable in ADV/CLK), so RUN must be on. The presets set the sound and the
+pattern; switch **RUN** on to hear the sequence.
 
 **Where your presets live** – one file per preset (`.ps8preset`, plain XML), so you can back them up,
 copy them to another computer or share them:
@@ -542,6 +562,7 @@ These are the parameter names in your DAW's automation.
 | VCA Attack | Fast / Slow | Fast |
 | Drive | 0–100 % | 0 % |
 | Volume | 0–100 % | 70 % |
+| Analog | 0–100 % | 0 % |
 | Tempo | 20–300 BPM | 120 BPM |
 | Run | Stop / Run | Stop |
 | Clock | Internal / Host | Host |
