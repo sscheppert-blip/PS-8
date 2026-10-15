@@ -27,7 +27,8 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 
 ## Download
 
-Released versions are under **Releases**: AU (macOS), VST3 and CLAP for macOS, Windows and Linux.
+Released versions are under **Releases**: AU (macOS), VST3, CLAP and a Standalone app for macOS,
+Windows and Linux.
 Installation is explained in the manual ([English](docs/Manual.md#1-installation) ·
 [Deutsch](docs/Handbuch.md#1-installation)).
 

@@ -35,7 +35,8 @@ gibt Klangrezepte und listet alle Parameter.
 
 ## 1. Installation
 
-PS-8 gibt es als **AU** (nur macOS), **VST3** und **CLAP** für macOS, Windows und Linux.
+PS-8 gibt es als **AU** (nur macOS), **VST3** und **CLAP** für macOS, Windows und Linux, dazu als
+**Standalone**-App, die ohne DAW läuft – praktisch, um schnell Sounds auszuprobieren.
 Fertige Pakete liegen unter **Releases** im Repository.
 
 | System | Ordner |
@@ -49,6 +50,11 @@ Fertige Pakete liegen unter **Releases** im Repository.
 
 Danach in der DAW die Plugins neu scannen lassen. PS-8 erscheint unter dem Hersteller
 **sscheppert-blip** als Instrument.
+
+**Standalone-App:** auspacken und von überall starten – auf macOS `PS-8.app` (z. B. in den
+Programme-Ordner), auf Windows `PS-8.exe`, auf Linux das Programm `PS-8`. Audio- und MIDI-Geräte
+unter **Options → Audio/MIDI Settings** wählen. Ohne DAW läuft PS-8 immer mit eigenem **TEMPO**,
+auch auf **HOST**.
 
 ### Plugins auf macOS freigeben
 
@@ -71,10 +77,10 @@ Finder ins Terminal-Fenster ziehen – der Pfad wird eingefügt – und Return d
 Markierung, `-r` nimmt alles im Plugin-Paket mit. `xattr -l "/Pfad/zum/Plugin"` zeigt, ob noch eine
 Markierung da ist.
 
-**Für PS-8 – alle drei Formate auf einmal:**
+**Für PS-8 – alle Formate auf einmal:**
 
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap /Applications/PS-8.app
 ```
 
 Wer nur einzelne Formate installiert hat, bekommt für die fehlenden eine Meldung – das ist egal, die
@@ -540,7 +546,7 @@ Die Anzeige „Steps 1-8 / 9-16“, die offene oder geschlossene Haube und die P
 
 | | |
 |---|---|
-| Formate | AU (macOS), VST3, CLAP; Standalone zum Testen |
+| Formate | AU (macOS), VST3, CLAP, Standalone-App |
 | Systeme | macOS 11+ (Apple Silicon und Intel), Windows x64, Linux x64 |
 | Stimmen | 1 pro Instanz |
 | Oversampling | 4× bis 48 kHz, 2× bis 96 kHz |

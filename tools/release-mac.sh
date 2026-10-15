@@ -39,10 +39,10 @@ dist=$build/dist
 # ── build + test (universal binary) ─────────────────────────────────────────
 echo "▸ building macOS packages for $tag ($sha)"
 cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" -DPS8_COPY_PLUGIN=OFF >/dev/null
-cmake --build "$build" --target PS8_AU PS8_VST3 PS8_CLAP PS8Tests
+cmake --build "$build" --target PS8_AU PS8_VST3 PS8_CLAP PS8_Standalone PS8Tests
 "$build/PS8Tests_artefacts/Release/PS8Tests"
 
-for bundle in VST3/PS-8.vst3 CLAP/PS-8.clap AU/PS-8.component; do
+for bundle in VST3/PS-8.vst3 CLAP/PS-8.clap AU/PS-8.component Standalone/PS-8.app; do
     codesign -v "$release/$bundle"
     [[ "$(lipo -archs "$release/$bundle/Contents/MacOS/PS-8")" == *arm64* ]] || die "$bundle is not universal"
     [[ "$(lipo -archs "$release/$bundle/Contents/MacOS/PS-8")" == *x86_64* ]] || die "$bundle is not universal"
@@ -71,6 +71,7 @@ rm -rf "$dist" && mkdir -p "$dist"
 ditto -c -k --keepParent "$release/VST3/PS-8.vst3"      "$dist/PS-8-macOS-VST3.zip"
 ditto -c -k --keepParent "$release/CLAP/PS-8.clap"      "$dist/PS-8-macOS-CLAP.zip"
 ditto -c -k --keepParent "$release/AU/PS-8.component"   "$dist/PS-8-macOS-AU.zip"
+ditto -c -k --keepParent "$release/Standalone/PS-8.app" "$dist/PS-8-macOS-Standalone.zip"
 
 if [[ "$dry_run" == true ]]; then
     echo "✓ dry run done – packages in $dist:"

@@ -34,7 +34,8 @@ This manual explains every control, gives sound recipes and lists all parameters
 
 ## 1. Installation
 
-PS-8 comes as **AU** (macOS only), **VST3** and **CLAP** for macOS, Windows and Linux.
+PS-8 comes as **AU** (macOS only), **VST3** and **CLAP** for macOS, Windows and Linux, plus a
+**Standalone** app that runs without a DAW – handy for trying out sounds quickly.
 Ready-made packages are under **Releases** in the repository.
 
 | System | Folder |
@@ -48,6 +49,10 @@ Ready-made packages are under **Releases** in the repository.
 
 Then let your DAW rescan its plugins. PS-8 shows up as an instrument by the manufacturer
 **sscheppert-blip**.
+
+**Standalone app:** unpack and start it from anywhere – on macOS `PS-8.app` (e.g. into Applications),
+on Windows `PS-8.exe`, on Linux the `PS-8` program. Pick your audio and MIDI devices under
+**Options → Audio/MIDI Settings**. Without a DAW, PS-8 always runs at its own **TEMPO**, even on **HOST**.
 
 ### Unblocking plugins on macOS
 
@@ -69,10 +74,10 @@ Finder into the Terminal window – the path is filled in – and press Return. 
 `-r` includes everything inside the plugin bundle. `xattr -l "/path/to/the/plugin"` shows whether a
 mark is still there.
 
-**For PS-8 – all three formats at once:**
+**For PS-8 – all formats at once:**
 
 ```bash
-xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PS-8.component ~/Library/Audio/Plug-Ins/VST3/PS-8.vst3 ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap /Applications/PS-8.app
 ```
 
 If you only installed some of the formats, the command reports the missing ones – that's fine, the
@@ -534,7 +539,7 @@ The "Steps 1-8 / 9-16" view, the open/closed service hatch and the patch cables 
 
 | | |
 |---|---|
-| Formats | AU (macOS), VST3, CLAP; Standalone for testing |
+| Formats | AU (macOS), VST3, CLAP, Standalone app |
 | Systems | macOS 11+ (Apple Silicon and Intel), Windows x64, Linux x64 |
 | Voices | 1 per instance |
 | Oversampling | 4× up to 48 kHz, 2× up to 96 kHz |

@@ -9,7 +9,7 @@ name: build
 #   On a PC:   gh workflow run build -f version=0.2.0
 #              (or Actions → build → Run workflow): builds all three platforms here.
 #
-# Each run builds and tests AU (macOS), VST3 and CLAP and publishes release v<version>.
+# Each run builds and tests AU (macOS), VST3, CLAP and the Standalone app and publishes release v<version>.
 on:
   workflow_dispatch:
     inputs:
@@ -62,13 +62,13 @@ jobs:
           entries=$(jq -nc --arg t "$tests" '[
             { name: "macOS",   os: "macos-latest",
               configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release \"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64\"",
-              targets: "PS8_AU PS8_VST3 PS8_CLAP PS8Tests", tests: $t },
+              targets: "PS8_AU PS8_VST3 PS8_CLAP PS8_Standalone PS8Tests", tests: $t },
             { name: "Linux",   os: "ubuntu-24.04",
               configure: "-G Ninja -DCMAKE_BUILD_TYPE=Release",
-              targets: "PS8_VST3 PS8_CLAP PS8Tests", tests: $t },
+              targets: "PS8_VST3 PS8_CLAP PS8_Standalone PS8Tests", tests: $t },
             { name: "Windows", os: "windows-latest",
               configure: "-A x64",
-              targets: "PS8_VST3 PS8_CLAP PS8Tests", tests: ($t + ".exe") }
+              targets: "PS8_VST3 PS8_CLAP PS8_Standalone PS8Tests", tests: ($t + ".exe") }
           ]')
           if [[ "$MACOS" != "true" ]]; then
             entries=$(jq -c 'map(select(.name != "macOS"))' <<< "$entries")
@@ -118,13 +118,16 @@ jobs:
             macOS)
               ditto -c -k --keepParent AU/PS-8.component "$GITHUB_WORKSPACE/dist/PS-8-macOS-AU.zip"
               ditto -c -k --keepParent VST3/PS-8.vst3 "$GITHUB_WORKSPACE/dist/PS-8-macOS-VST3.zip"
-              ditto -c -k --keepParent CLAP/PS-8.clap "$GITHUB_WORKSPACE/dist/PS-8-macOS-CLAP.zip" ;;
+              ditto -c -k --keepParent CLAP/PS-8.clap "$GITHUB_WORKSPACE/dist/PS-8-macOS-CLAP.zip"
+              ditto -c -k --keepParent Standalone/PS-8.app "$GITHUB_WORKSPACE/dist/PS-8-macOS-Standalone.zip" ;;
             Linux)
               tar -czf "$GITHUB_WORKSPACE/dist/PS-8-Linux-VST3.tar.gz" -C VST3 PS-8.vst3
-              tar -czf "$GITHUB_WORKSPACE/dist/PS-8-Linux-CLAP.tar.gz" -C CLAP PS-8.clap ;;
+              tar -czf "$GITHUB_WORKSPACE/dist/PS-8-Linux-CLAP.tar.gz" -C CLAP PS-8.clap
+              tar -czf "$GITHUB_WORKSPACE/dist/PS-8-Linux-Standalone.tar.gz" -C Standalone PS-8 ;;
             Windows)
               7z a "$GITHUB_WORKSPACE/dist/PS-8-Windows-VST3.zip" ./VST3/PS-8.vst3
-              7z a "$GITHUB_WORKSPACE/dist/PS-8-Windows-CLAP.zip" ./CLAP/PS-8.clap ;;
+              7z a "$GITHUB_WORKSPACE/dist/PS-8-Windows-CLAP.zip" ./CLAP/PS-8.clap
+              7z a "$GITHUB_WORKSPACE/dist/PS-8-Windows-Standalone.zip" ./Standalone/PS-8.exe ;;
           esac
 
       - uses: actions/upload-artifact@v4
