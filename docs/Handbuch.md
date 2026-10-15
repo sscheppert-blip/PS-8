@@ -220,7 +220,8 @@ Mit den Buchsen unten leitest du Hüllkurven, Oszillatoren und den Sequencer per
 | Element | Funktion |
 |---|---|
 | **PITCH** (obere Reihe) | Tonhöhe je Step, ±24 Halbtöne. Mitte = 0 |
-| **VELOCITY** (mittlere Reihe) | Lautstärke je Step |
+| **Mittlere Reihe** | Velocity, Ratchet oder Chance je Step – gewählt mit den drei Tasten links neben der Reihe |
+| **VELOCITY / RATCHET / CHANCE** (Tasten) | Was die mittlere Reihe einstellt. Die leuchtende Taste ist aktiv; die beiden anderen Werte bleiben, wie sie sind |
 | **Leuchttaster** (STEP ON) | Step an/aus. **Grün** = an, **dunkel** = aus, **amber** = spielt gerade. Steps hinter der eingestellten Länge sind abgedunkelt |
 | **TEMPO** | Eigenes Tempo 20–300 BPM (nur bei **INT**) |
 | **RUN / STOP** | Sequencer an/aus |
@@ -229,7 +230,12 @@ Mit den Buchsen unten leitest du Hüllkurven, Oszillatoren und den Sequencer per
 | **TRIG** | Aktuellen Step nochmal spielen |
 | **ADV** | Einen Step weiter und spielen |
 | **RESET** | Der nächste Step ist wieder Step 1 |
+| **RATE** (Kopfzeile links) | Notenwert pro Step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = Triole) |
+| **LENGTH** (Kopfzeile links) | Anzahl der Steps, 1–16. Damit gehen auch ungerade Rhythmen (5, 7, 11 …), die gegen den Takt laufen |
 | **1-8 / 9-16** (Reiter in der Kopfzeile) | Welche acht Steps angezeigt werden. Ein Punkt leuchtet auf der Seite, die gerade spielt |
+
+**RATE und LENGTH:** Pfeil anklicken schaltet weiter, ein Klick auf den Wert öffnet eine Liste, das
+Mausrad geht auch; Doppelklick auf den Wert setzt zurück.
 
 **HOST-Modus im Detail:** Die Steps hängen an der Position im Song, gezählt ab Songanfang. Bei
 8 Steps à 1/16 fällt Step 1 also auf jede halbe Note, bei 16 Steps auf jeden Taktanfang. Springst du in der DAW oder läuft ein Loop,
@@ -239,6 +245,15 @@ springt der Sequencer mit. **RESET** verschiebt den Start auf den nächsten Step
 stumm – genau wie ein ausgeschalteter Step. Wie beim Original klingen leisere Steps außerdem etwas
 schneller ab: Bei 100 % brauchen die drei Hüllkurven genau die Zeit des DECAY-Reglers, bei 0 % sind sie
 30 % kürzer.
+
+**Ratchet:** 1x–4x je Step. Der Step feuert so viele Schläge, gleichmäßig über seine Länge verteilt –
+2x bei einem 1/16-Step ergibt zwei 1/32-Schläge. Ein neuer Step schneidet den Rest ab. Mit einem Kabel
+in ADV/CLK ist die Step-Länge der Abstand der letzten beiden Clock-Impulse. TRIG, ADV und MIDI-Noten
+spielen die Ratchets mit.
+
+**Chance:** 0–100 % je Step. Bei jedem Durchlauf spielt der Step mit dieser Wahrscheinlichkeit – bei
+100 % immer (Standard), bei 0 % nie. Gewürfelt wird nur beim Takt (INT, HOST oder Kabel in ADV/CLK);
+TRIG, ADV und MIDI-Noten spielen immer.
 
 **Warum zwei gleiche Steps verschieden klingen können:** Die Oszillatoren laufen frei durch, wie
 analoge – ein Schlag beginnt dort, wo die Welle gerade steht. Bei tiefen Tönen (Kicks, Toms) ändert
@@ -251,25 +266,26 @@ Kapitel 7).
 
 ![PS-8 Service-Platine](images/service.png)
 
-Vorne auf der Frontplatte ist nur, was zum Original gehört. Die Extras sitzen auf einer Platine unter
-der Modulreihe – wie hinter der Wartungsklappe einer Leitwarte.
+In der Modulreihe ist nur, was zum Original gehört. Die Klang-Extras sitzen auf einer Platine darunter –
+wie hinter der Wartungsklappe einer Leitwarte. Alles, was du beim Spielen des Sequencers brauchst
+(Rate, Länge, Ratchet, Chance), bleibt vorne.
 
 - **Öffnen:** den **SERVICE**-Schlüssel drehen (oben rechts neben SCRAM) oder auf eine der vier
   Schrauben an den Ecken der Modulreihe klicken. Die Schrauben drehen sich raus, die Haube klappt hoch.
 - **Schließen:** den Schlüssel zurückdrehen oder auf eines der vier Schraubenlöcher der Platine klicken.
 - Ob die Haube offen ist, wird mit dem Projekt gespeichert. Presets ändern daran nichts.
 
-Ab Werk ist hier alles neutral: 8 Steps, keine Skala, kein Glide, LFO-Stärke 0. Die blauen Trimmpotis
+Ab Werk ist hier alles neutral: keine Skala, kein Glide, kein Swing, LFO-Stärke 0. Die blauen Trimmpotis
 bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt eine kleine Anzeige den Wert.
 
 ### SEQ OPTIONS
 
 | Element | Funktion |
 |---|---|
-| **RATE** | Notenwert pro Step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = Triole) |
-| **LENGTH** | Anzahl der Steps, 1–16. Damit gehen auch ungerade Rhythmen (5, 7, 11 …), die gegen den Takt laufen |
-| **SCALE** | Die PITCH-Regler rasten ein: **OFF** (stufenlos), **CHROMATIC** (Halbtöne), **MAJOR** (Dur), **MINOR** (Moll), **PENTATONIC** (Moll-Pentatonik). Grundton ist immer die eingestellte FREQUENCY |
+| **SCALE** | Die PITCH-Regler rasten ein: **OFF** (stufenlos), **CHROMATIC** (Halbtöne), **MAJOR** (Dur), **MINOR** (Moll), **PENTATONIC** (Moll-Pentatonik) |
+| **ROOT** | Transponiert das ganze Pattern, C … B: Ein Step auf 0 spielt den Grundton, C = unverändert, D = 2 Halbtöne höher … B = 11 höher (gezählt ab der eingestellten FREQUENCY). Wirkt bei jeder SCALE-Einstellung – die Skala baut auf dem Grundton auf |
 | **GLIDE** | Der Ton gleitet von Step zu Step statt zu springen, bis 1 s. Ganz links = aus |
+| **SWING** | 50 % (gerade) … 75 %: jeder zweite Step kommt später – 66 % ist ein Triolen-Shuffle. Wirkt bei INT und HOST (bei HOST passend zum Takt), nicht mit Kabel in ADV/CLK |
 
 ### LFO
 
@@ -377,7 +393,7 @@ seit dem Laden etwas verändert. Oben rechts steht, ob es ein **FACTORY**- oder 
 | **MENU** oder Klick auf den Namen | Alle Presets auf einen Blick, dazu **Save as…** (Speichern unter), **Rename…** (Umbenennen), **Delete** (Löschen) und **Open preset folder** (Ordner öffnen) |
 
 **Was ein Preset enthält:** alle Regler und Schalter, das ganze Step-Pattern (Pitch, Velocity, an/aus,
-Länge, Rate, Scale, Glide), den LFO und die Patch-Kabel. **Nicht** dabei sind **RUN/STOP** und
+Ratchet, Chance, Länge, Rate, Scale, Root, Glide, Swing), den LFO und die Patch-Kabel. **Nicht** dabei sind **RUN/STOP** und
 **INT/HOST** – ein Preset-Wechsel startet oder stoppt den Sequencer also nie.
 
 **Werks-Presets** sind eingebaut und schreibgeschützt. Willst du eine geänderte Fassung behalten,
@@ -466,7 +482,7 @@ Rezepte sind auch als Werks-Presets eingebaut. Uhrzeiten beziehen sich auf die R
 - VCO 1 auf SQR, FREQUENCY 10 Uhr, EG AMOUNT Mitte
 - FILTER: CUTOFF 9 Uhr, RESONANCE 3 Uhr, EG AMOUNT 2 Uhr
 - DECAY: FILTER 10 Uhr, VCA 1 Uhr
-- Service-Platine: SCALE MINOR, GLIDE 9 Uhr, LENGTH 16; dann die PITCH-Regler verteilen
+- LENGTH 16; Service-Platine: SCALE MINOR, GLIDE 9 Uhr; dann die PITCH-Regler verteilen
 
 **Bewegter Groove**
 - Beliebiger Sound, dazu der LFO auf der Service-Platine: TARGET CUTOFF, SHAPE TRIANGLE, Jumper auf SYNC, RATE 1 BAR, DEPTH 12 Uhr
@@ -527,6 +543,8 @@ So heißen die Parameter in der Automation der DAW.
 | Seq Pitch To | VCO 1+2 / Off / VCO 2 | VCO 1+2 |
 | Seq Length | 1–16 | 8 |
 | Seq Pitch Scale | Off / Chromatic / Major / Minor / Pentatonic | Off |
+| Seq Root | C … B | C |
+| Swing | 50–75 % | 50 % |
 | Glide | Off – 1 s | Off |
 | LFO Rate | 0,05–40 Hz | ca. 1 Hz |
 | LFO Sync Rate | 4 Bars … 1/32 | 1 Bar |
@@ -537,8 +555,10 @@ So heißen die Parameter in der Automation der DAW.
 | Step 1 … 16 Pitch | −24 … +24 Halbtöne | 0 |
 | Step 1 … 16 Velocity | 0–100 % | 100 % |
 | Step 1 … 16 On | Off / On | On |
+| Step 1 … 16 Ratchet | 1x–4x | 1x |
+| Step 1 … 16 Chance | 0–100 % | 100 % |
 
-Die Anzeige „Steps 1-8 / 9-16“, die offene oder geschlossene Haube und die Patch-Kabel werden mit dem Projekt gespeichert, sind aber nicht automatisierbar.
+Die Anzeige „Steps 1-8 / 9-16“, die Wahl VELOCITY / RATCHET / CHANCE, die offene oder geschlossene Haube und die Patch-Kabel werden mit dem Projekt gespeichert, sind aber nicht automatisierbar.
 
 ---
 

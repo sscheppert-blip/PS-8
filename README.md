@@ -6,9 +6,10 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 - Two VCOs (triangle/square) with pitch envelope, linear FM 1→2 and hard sync, white/pink noise
 - 4-pole ladder filter (low/high pass) with envelope and noise modulation
 - Three decay envelopes (pitch, filter, VCA) with fast/slow VCA attack, drive
-- Step sequencer (1–16 steps) with pitch and velocity per step, steps switchable on/off
-- Extras under the hood: unscrew the module row to reach a service board with sequence length,
-  pitch quantiser (chromatic, major, minor, pentatonic), glide and an LFO (5 shapes, free or
+- Step sequencer (1–16 steps) with pitch, velocity, ratchet (1–4 hits) and chance per step, steps
+  switchable on/off
+- Extras under the hood: unscrew the module row to reach a service board with pitch quantiser
+  (chromatic, major, minor, pentatonic on any root), glide, swing and an LFO (5 shapes, free or
   host-synced) on pitch, VCO 2, cutoff, FM or volume
 - Internal tempo or locked to the host's bar position, 1/4 … 1/32 incl. triplets
 - MIDI: play single steps, advance, retrigger and reset by note
@@ -46,6 +47,7 @@ the robot – the human only pointed and said "make it go boom". 🤖💐
 ## License
 
 Public domain ([Unlicense](LICENSE)) – do whatever you like with it, no credit needed.
-The plugins are built with [JUCE](https://juce.com), which has its own license terms.
+The plugins are built with [JUCE](https://juce.com), which has its own license terms. The panel font
+[Saira Stencil One](design/fonts) is under the SIL Open Font License (design/fonts/OFL.txt).
 
 <sub>Building from source: [docs/Development.md](docs/Development.md)</sub>

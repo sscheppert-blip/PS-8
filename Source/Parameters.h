@@ -41,8 +41,11 @@ namespace ps8::params
         inline constexpr const char* length      = "seqLength";
         inline constexpr const char* scale       = "seqScale";
         inline constexpr const char* glide       = "glide";
+        inline constexpr const char* root        = "seqRoot";
+        inline constexpr const char* swing       = "swing";
         inline constexpr const char* viewPage    = "viewPage";
         inline constexpr const char* serviceOpen = "serviceOpen";
+        inline constexpr const char* stepRow     = "seqStepRow";   // what the middle row of step knobs sets
 
         inline constexpr const char* lfoRate     = "lfoRate";
         inline constexpr const char* lfoDivision = "lfoDivision";
@@ -55,7 +58,13 @@ namespace ps8::params
         juce::String stepPitch (int step);
         juce::String stepVelocity (int step);
         juce::String stepOn (int step);
+        juce::String stepRatchet (int step);
+        juce::String stepChance (int step);
     }
+
+    // stepRow choices
+    enum class StepRow { velocity, ratchet, chance };
+    inline constexpr int maxRatchet = 4;
 
     // LFO cycle length in quarter notes for each lfoDivision choice
     inline constexpr double lfoDivisionBeats[] { 16.0, 8.0, 4.0, 2.0, 1.0, 0.5, 0.25, 0.125 };

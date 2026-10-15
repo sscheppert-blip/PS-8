@@ -54,6 +54,7 @@ set(PS8_SOURCES
     Source/Parameters.cpp
     Source/Presets.cpp
     Source/PluginProcessor.cpp
+    Source/StandaloneApp.cpp
     Source/PluginEditor.cpp
     Source/ui/Patchbay.cpp
     Source/ui/ProgramDisplay.cpp
@@ -62,16 +63,24 @@ set(PS8_SOURCES
 
 target_sources(PS8 PRIVATE ${PS8_SOURCES})
 
+# Saira Stencil One (SIL Open Font License, see design/fonts/OFL.txt) for titles and the logo
+juce_add_binary_data(PS8Fonts
+    HEADER_NAME PS8Fonts.h
+    NAMESPACE   PS8Fonts
+    SOURCES     design/fonts/SairaStencilOne-Regular.ttf)
+
 target_include_directories(PS8 PRIVATE Source)
 
 target_compile_definitions(PS8
     PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_VST3_CAN_REPLACE_VST2=0)
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1)   # Source/StandaloneApp.cpp: native title bar
 
 target_link_libraries(PS8
     PRIVATE
+        PS8Fonts
         clap_juce_extensions
         juce::juce_audio_utils
         juce::juce_dsp
@@ -133,6 +142,7 @@ if(PS8_BUILD_TESTS)
 
     target_link_libraries(PS8Tests
         PRIVATE
+            PS8Fonts
             clap_juce_extensions
             juce::juce_audio_utils
             juce::juce_dsp

@@ -20,6 +20,11 @@ namespace ps8::seq
         return 4.0;
     }
 
+    float stepPitch (float knobSemitones, Scale scale, int root) noexcept
+    {
+        return (float) root + quantise (knobSemitones, scale);
+    }
+
     float quantise (float semitones, Scale scale) noexcept
     {
         static constexpr int major[] { 0, 2, 4, 5, 7, 9, 11 };
@@ -65,6 +70,7 @@ namespace ps8::seq
     {
         currentStep = -1;
         hostOffset = lastHostTick + 1;
+        internalTicks = 0;
     }
 
     void Sequencer::setLength (int numSteps) noexcept
@@ -91,6 +97,7 @@ namespace ps8::seq
         {
             running = true;
             samplesToNext = 0.0;
+            internalTicks = 0;
         }
 
         int count = 0;
@@ -98,7 +105,9 @@ namespace ps8::seq
         while (samplesToNext < (double) numSamples)
         {
             if (count < maxTicks)
-                out[count++] = { std::clamp ((int) samplesToNext, 0, numSamples - 1), advance() };
+                out[count++] = { std::clamp ((int) samplesToNext, 0, numSamples - 1), advance(), (internalTicks & 1) != 0 };
+
+            ++internalTicks;
 
             samplesToNext += samplesPerTick;
         }
@@ -113,6 +122,7 @@ namespace ps8::seq
         {
             running = true;
             stepsToNext = 0.0;
+            internalTicks = 0;
         }
 
         // counts in steps rather than samples, so a tempo change acts on the step already under way
@@ -122,6 +132,7 @@ namespace ps8::seq
         if (stepsToNext < stepsPerSample)
         {
             step = advance();
+            offbeat = (internalTicks++ & 1) != 0;
             stepsToNext += 1.0;
         }
 
@@ -158,7 +169,7 @@ namespace ps8::seq
             lastHostTick = n;
 
             if (count < maxTicks)
-                out[count++] = { position, step };
+                out[count++] = { position, step, (n & 1) != 0 };
         }
 
         return count;

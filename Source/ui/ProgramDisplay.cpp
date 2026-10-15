@@ -143,7 +143,7 @@ namespace ps8::ui
             }
             else
             {
-                g.setFont (stencilFont (11.0f));
+                g.setFont (stencilFont (13.0f));
                 g.drawText (key == Key::save ? "SAVE" : "MENU", area.translated (0.0f, down ? 1.0f : 0.0f),
                             juce::Justification::centred, false);
             }

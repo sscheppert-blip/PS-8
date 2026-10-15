@@ -1,5 +1,7 @@
 #include "Widgets.h"
 
+#include <PS8Fonts.h>
+
 namespace ps8::ui
 {
     namespace
@@ -13,7 +15,9 @@ namespace ps8::ui
 
     juce::Font stencilFont (float height)
     {
-        return juce::Font (juce::FontOptions (height, juce::Font::bold).withKerningFactor (0.08f));
+        static const auto typeface = juce::Typeface::createSystemTypefaceFor (PS8Fonts::SairaStencilOneRegular_ttf,
+                                                                              PS8Fonts::SairaStencilOneRegular_ttfSize);
+        return juce::Font (juce::FontOptions (typeface).withHeight (height).withKerningFactor (0.04f));
     }
 
     juce::Font labelFont (float height)
@@ -107,7 +111,7 @@ namespace ps8::ui
         g.setColour (colours::ink);
         g.fillRect (bar);
         g.setColour (colours::plateText);
-        g.setFont (stencilFont (14.0f));
+        g.setFont (stencilFont (17.0f));
         g.drawText (title, bar, juce::Justification::centred, false);
 
         drawScrew (g, { area.getX() + 8.0f, area.getBottom() - 8.0f });
@@ -379,6 +383,160 @@ namespace ps8::ui
     }
 
     //==============================================================================
+    Stepper::Stepper (juce::AudioProcessorValueTreeState& state, const juce::String& paramId, const juce::String& labelText,
+                      float labelSpace)
+        : parameter (*state.getParameter (paramId)),
+          label (labelText),
+          labelWidth (labelSpace),
+          attachment (parameter, [this] (float v)
+          {
+              value = v;
+              repaint();
+          })
+    {
+        attachment.sendInitialUpdate();
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+
+    juce::Rectangle<float> Stepper::box() const
+    {
+        return getLocalBounds().toFloat().withTrimmedLeft (labelWidth).reduced (0.0f, 2.0f);
+    }
+
+    void Stepper::stepBy (int delta)
+    {
+        const auto& range = parameter.getNormalisableRange();
+        const auto next = juce::jlimit (range.start, range.end, std::round (value) + (float) delta);
+
+        if (std::abs (next - value) > 0.5f)
+            attachment.setValueAsCompleteGesture (next);
+    }
+
+    void Stepper::showList()
+    {
+        const auto& range = parameter.getNormalisableRange();
+        juce::PopupMenu menu;
+
+        for (auto v = range.start; v <= range.end + 0.5f; v += 1.0f)
+            menu.addItem (juce::roundToInt (v - range.start) + 1, parameter.getText (parameter.convertTo0to1 (v), 32),
+                          true, std::abs (v - value) < 0.5f);
+
+        menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
+                            [this, start = range.start] (int result)
+                            {
+                                if (result > 0)
+                                    attachment.setValueAsCompleteGesture (start + (float) (result - 1));
+                            });
+    }
+
+    void Stepper::mouseUp (const juce::MouseEvent& e)
+    {
+        const auto b = box();
+
+        if (! b.contains (e.position) || e.mouseWasDraggedSinceMouseDown())
+            return;
+
+        if (e.position.x < b.getX() + 16.0f)
+            stepBy (-1);
+        else if (e.position.x > b.getRight() - 16.0f)
+            stepBy (1);
+        else
+            showList();
+    }
+
+    void Stepper::mouseDoubleClick (const juce::MouseEvent& e)
+    {
+        const auto b = box();
+
+        // only the value itself resets; double-clicking an arrow just steps twice
+        if (b.contains (e.position) && e.position.x >= b.getX() + 16.0f && e.position.x <= b.getRight() - 16.0f)
+            attachment.setValueAsCompleteGesture (parameter.convertFrom0to1 (parameter.getDefaultValue()));
+    }
+
+    void Stepper::mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails& wheelDetails)
+    {
+        wheel += wheelDetails.deltaY * (wheelDetails.isReversed ? -1.0f : 1.0f);
+
+        if (std::abs (wheel) >= 0.12f)
+        {
+            stepBy (wheel > 0.0f ? 1 : -1);
+            wheel = 0.0f;
+        }
+    }
+
+    void Stepper::paint (juce::Graphics& g)
+    {
+        drawLabel (g, label, { 2.0f, (float) getHeight() * 0.5f }, 10.0f, colours::dimText, juce::Justification::centredLeft);
+
+        const auto b = box();
+        g.setColour (juce::Colour (0xff0d120f));
+        g.fillRoundedRectangle (b, 2.0f);
+        g.setColour (colours::plateText.withAlpha (0.6f));
+        g.drawRoundedRectangle (b, 2.0f, 1.0f);
+
+        const auto& range = parameter.getNormalisableRange();
+        auto arrow = [&g] (juce::Point<float> c, bool left, bool enabled)
+        {
+            juce::Path p;
+            const auto d = left ? -1.0f : 1.0f;
+            p.addTriangle (c.x + 3.5f * d, c.y, c.x - 3.0f * d, c.y - 4.0f, c.x - 3.0f * d, c.y + 4.0f);
+            g.setColour (enabled ? colours::plateText : colours::plateText.withAlpha (0.25f));
+            g.fillPath (p);
+        };
+
+        arrow ({ b.getX() + 9.0f, b.getCentreY() }, true, value > range.start + 0.5f);
+        arrow ({ b.getRight() - 9.0f, b.getCentreY() }, false, value < range.end - 0.5f);
+
+        g.setColour (colours::nixie);
+        g.setFont (labelFont (12.0f));
+        g.drawText (parameter.getCurrentValueAsText(), b.reduced (16.0f, 0.0f), juce::Justification::centred, false);
+    }
+
+    //==============================================================================
+    SelectorKeys::SelectorKeys (juce::AudioProcessorValueTreeState& state, const juce::String& paramId,
+                                juce::StringArray keyNames)
+        : names (std::move (keyNames)),
+          attachment (*state.getParameter (paramId), [this] (float value)
+          {
+              selected = juce::jlimit (0, names.size() - 1, juce::roundToInt (value));
+              repaint();
+          })
+    {
+        attachment.sendInitialUpdate();
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+
+    juce::Rectangle<float> SelectorKeys::keyBounds (int index) const
+    {
+        const auto h = (float) getHeight() / (float) names.size();
+        return { 1.0f, h * (float) index + 1.0f, (float) getWidth() - 2.0f, h - 2.0f };
+    }
+
+    void SelectorKeys::mouseUp (const juce::MouseEvent& e)
+    {
+        for (int i = 0; i < names.size(); ++i)
+            if (keyBounds (i).contains (e.position))
+                attachment.setValueAsCompleteGesture ((float) i);
+    }
+
+    void SelectorKeys::paint (juce::Graphics& g)
+    {
+        for (int i = 0; i < names.size(); ++i)
+        {
+            const auto key = keyBounds (i);
+            const auto lit = i == selected;
+            g.setColour (lit ? colours::plateText : colours::ink.brighter (0.25f));
+            g.fillRoundedRectangle (key, 2.0f);
+            g.setColour (colours::plateText.withAlpha (0.6f));
+            g.drawRoundedRectangle (key, 2.0f, 1.0f);
+            drawLabel (g, names[i], key.getCentre().translated (5.0f, 0.0f), 9.5f, lit ? colours::ink : colours::plateText);
+
+            g.setColour (lit ? colours::amber : juce::Colour (0xff3b3020));
+            g.fillEllipse (juce::Rectangle<float> (6.0f, 6.0f).withCentre ({ key.getX() + 8.0f, key.getCentreY() }));
+        }
+    }
+
+    //==============================================================================
     Toggle::Toggle (juce::AudioProcessorValueTreeState& state, const juce::String& paramId, std::vector<float> leverPositions,
                     Labels toggleLabels)
         : positions (std::move (leverPositions)),
@@ -563,7 +721,7 @@ namespace ps8::ui
             g.setColour (juce::Colour (0xff4a0905));
             g.drawEllipse (juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (bc), 1.5f);
             g.setColour (juce::Colour (0xffffe9e4));
-            g.setFont (stencilFont (16.0f));
+            g.setFont (stencilFont (20.0f));
             g.drawText (label, juce::Rectangle<float> (80.0f, 20.0f).withCentre (bc), juce::Justification::centred, false);
             return;
         }

@@ -332,6 +332,10 @@ static void testSequencer()
         check (near (quantise (3.6f, Scale::minor), 3.0f) && near (quantise (-1.6f, Scale::minor), -2.0f), "quantise minor");
         check (near (quantise (1.0f, Scale::pentatonic), 0.0f) && near (quantise (8.0f, Scale::pentatonic), 7.0f), "quantise pentatonic");
         check (near (quantise (2.37f, Scale::off), 2.37f), "quantise off keeps the pitch");
+        check (near (stepPitch (0.0f, Scale::off, 2), 2.0f) && near (stepPitch (0.4f, Scale::off, 0), 0.4f),
+               "root transposes the steps, also without a scale (step 0 = root)");
+        check (near (stepPitch (1.2f, Scale::major, 2), 4.0f) && near (stepPitch (3.6f, Scale::minor, 9), 12.0f),
+               "the scale is built on the root (D major: +1.2 -> E; A minor: +3.6 -> C)");
     }
 
     {
@@ -908,6 +912,119 @@ static void testDoubleClick()
 }
 
 //==============================================================================
+static void testRatchetAndChance()
+{
+    namespace id = ps8::params::id;
+
+    PS8AudioProcessor processor;
+    processor.setPlayConfigDetails (0, 2, 48000.0, 512);
+    setParam (processor, id::hostClock, 0.0f);
+    setParam (processor, id::run, 0.0f);
+    setParam (processor, id::vcaDecay, 0.0f);   // 3 ms: every hit is a separate burst
+    processor.prepareToPlay (48000.0, 512);
+
+    auto render = [&processor] (int blocks, juce::MidiBuffer midi = {})
+    {
+        std::vector<float> out;
+        juce::AudioBuffer<float> buffer (2, 512);
+
+        for (int i = 0; i < blocks; ++i)
+        {
+            auto events = i == 0 ? midi : juce::MidiBuffer();
+            buffer.clear();
+            processor.processBlock (buffer, events);
+            out.insert (out.end(), buffer.getReadPointer (0), buffer.getReadPointer (0) + 512);
+        }
+
+        return out;
+    };
+
+    // onsets: loud after at least 400 quiet samples
+    auto onsets = [] (const std::vector<float>& x)
+    {
+        std::vector<size_t> found;
+        size_t quiet = 400;
+
+        for (size_t i = 0; i < x.size(); ++i)
+        {
+            if (std::abs (x[i]) > 0.01f)
+            {
+                if (quiet >= 400)
+                    found.push_back (i);
+                quiet = 0;
+            }
+            else
+            {
+                ++quiet;
+            }
+        }
+
+        return found;
+    };
+
+    auto runFor = [&] (int blocks)
+    {
+        setParam (processor, id::run, 1.0f);
+        const auto hits = onsets (render (blocks)).size();
+        setParam (processor, id::run, 0.0f);
+        render (40);
+        return (int) hits;
+    };
+
+    // 120 BPM sixteenths = 6000 samples per step; 93 blocks = 8 steps (not yet the 9th)
+    const auto plain = runFor (93);
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+        setParam (processor, id::stepRatchet (i), 4.0f);
+
+    const auto ratcheted = runFor (93);
+    check (plain == 8 && ratcheted == 32, "ratchet 4 plays four hits per step");
+
+    setParam (processor, id::run, 1.0f);
+    const auto spacing = onsets (render (12));
+    setParam (processor, id::run, 0.0f);
+    render (40);
+    // the onset detector is a few samples late on a hit that starts at a low point of the wave
+    check (spacing.size() >= 4 && std::abs ((double) (spacing[2] - spacing[0]) - 3000.0) <= 12.0
+               && std::abs ((double) (spacing[3] - spacing[1]) - 3000.0) <= 12.0,
+           "ratchet hits are spread evenly over the step");
+
+    check (onsets (render (12, noteOn (PS8AudioProcessor::firstStepNote))).size() == 4, "a MIDI note plays the step's ratchets too");
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+    {
+        setParam (processor, id::stepRatchet (i), 1.0f);
+        setParam (processor, id::stepChance (i), 0.0f);
+    }
+
+    check (runFor (93) == 0, "chance 0 % never plays a clocked step");
+    check (onsets (render (12, noteOn (PS8AudioProcessor::firstStepNote))).size() == 1, "a MIDI note ignores the chance");
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+        setParam (processor, id::stepChance (i), 0.5f);
+
+    const auto half = runFor (1125);   // 96 steps (1125 blocks = 95.9 steps)
+    std::printf ("      chance 50 %%: %d of 96 steps\n", half);
+    check (half > 28 && half < 68, "chance 50 % plays about half of the steps");
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+        setParam (processor, id::stepChance (i), 1.0f);
+
+    // swing 75 %: every second step moves half a step later (6000 samples per step)
+    setParam (processor, id::swing, 0.75f);
+    setParam (processor, id::run, 1.0f);
+    const auto swung = onsets (render (60));
+    setParam (processor, id::run, 0.0f);
+    render (40);
+    setParam (processor, id::swing, 0.5f);
+
+    auto gap = [&swung] (size_t a) { return (double) swung[a + 1] - (double) swung[a]; };
+    check (swung.size() >= 4 && std::abs (gap (0) - 9000.0) <= 12.0 && std::abs (gap (1) - 3000.0) <= 12.0
+               && std::abs (gap (2) - 9000.0) <= 12.0,
+           "swing 75 % delays every second step by half a step");
+}
+
+//==============================================================================
 // Like clap-validator's param-conversions: value -> text -> value -> text must give the same text.
 static void testTextConversions()
 {
@@ -1106,6 +1223,7 @@ int main (int argc, char** argv)
     testPatchbayMouse();
     testPresets();
     testDoubleClick();
+    testRatchetAndChance();
     testTextConversions();
 
     std::printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASSED" : "FAILED", failures, failures == 1 ? "" : "s");

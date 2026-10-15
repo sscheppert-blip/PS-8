@@ -101,7 +101,8 @@ namespace ps8
     bool Presets::isPresetParameter (const juce::String& paramId)
     {
         namespace id = params::id;
-        return paramId != id::run && paramId != id::hostClock && paramId != id::viewPage && paramId != id::serviceOpen;
+        return paramId != id::run && paramId != id::hostClock && paramId != id::viewPage && paramId != id::serviceOpen
+            && paramId != id::stepRow;
     }
 
     juce::ValueTree Presets::capture() const

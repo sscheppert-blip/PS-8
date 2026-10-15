@@ -215,7 +215,8 @@ The jacks at the bottom re-route envelopes, oscillators and the sequencer with c
 | Control | Function |
 |---|---|
 | **PITCH** (top row) | Pitch per step, ±24 semitones. Centre = 0 |
-| **VELOCITY** (middle row) | Level per step |
+| **Middle row** | Velocity, ratchet or chance per step – picked with the three keys left of the row |
+| **VELOCITY / RATCHET / CHANCE** (keys) | What the middle row sets. The lit key is active; the other two values stay as they are |
 | **Lamp buttons** (STEP ON) | Step on/off. **Green** = on, **dark** = off, **amber** = playing. Steps beyond the set length are dimmed |
 | **TEMPO** | Own tempo 20–300 BPM (only with **INT**) |
 | **RUN / STOP** | Sequencer on/off |
@@ -224,7 +225,12 @@ The jacks at the bottom re-route envelopes, oscillators and the sequencer with c
 | **TRIG** | Play the current step again |
 | **ADV** | Advance one step and play it |
 | **RESET** | The next step is step 1 again |
+| **RATE** (title bar, left) | Note value per step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = triplet) |
+| **LENGTH** (title bar, left) | Number of steps, 1–16. Odd lengths (5, 7, 11 …) run against the bar |
 | **1-8 / 9-16** (tabs in the title bar) | Which eight steps are shown. A dot lights on the page that is playing |
+
+**RATE and LENGTH:** click an arrow to step, click the value for a list, or use the mouse wheel;
+double-click the value resets it.
 
 **HOST mode in detail:** the steps follow the position in the song, counted from the song start. With
 8 steps of 1/16, step 1 falls on every half note; with 16 steps on every bar. When you jump in the DAW
@@ -233,6 +239,14 @@ or a loop wraps, the sequencer follows. **RESET** moves the start to the next st
 **Velocity and level:** a step's velocity is the peak of the VCA envelope. Velocity 0 is silent – just
 like a step switched off. As on the original, softer steps also decay a little faster: at 100 % the
 three envelopes take exactly the DECAY knob's time, at 0 % they are 30 % shorter.
+
+**Ratchet:** 1x–4x per step. The step fires that many hits, spread evenly over its length – 2x on a
+1/16 step gives two 1/32 hits. A new step cuts off the rest. With a cable in ADV/CLK the step length is
+the time between the last two clock pulses. TRIG, ADV and MIDI notes play the ratchets too.
+
+**Chance:** 0–100 % per step. With each pass of the sequencer the step plays with this probability –
+at 100 % always (the default), at 0 % never. Only the clock (INT, HOST or a cable in ADV/CLK) rolls the
+dice; TRIG, ADV and MIDI notes always play.
 
 **Why two equal steps can sound different:** the oscillators run freely, like analog ones – a hit
 starts wherever the wave happens to be. With low pitches (kicks, toms) that changes the click and punch
@@ -244,25 +258,26 @@ from step to step. For identical hits, patch **TRIG → VCO RST** (see chapter 7
 
 ![PS-8 service board](images/service.png)
 
-The front panel only carries what belongs to the original instrument. The extras sit on a circuit board
-under the module row – like the service hatch of a control room.
+The module row only carries what belongs to the original instrument. The sound extras sit on a circuit
+board under it – like the service hatch of a control room. Everything you need while playing the
+sequencer (rate, length, ratchet, chance) stays on the front.
 
 - **Open:** turn the **SERVICE** key (top right, next to SCRAM) or click one of the four screws at the
   corners of the module row. The screws turn out and the cover flips up.
 - **Close:** turn the key back or click one of the four screw holes on the board.
 - The hatch stays open or closed with your project. Presets don't change it.
 
-By default everything here is neutral: 8 steps, no scale, no glide, LFO depth 0. The blue trimmers
+By default everything here is neutral: no scale, no glide, no swing, LFO depth 0. The blue trimmers
 work like the knobs (drag, double-click resets); a small display under each one shows its value.
 
 ### SEQ OPTIONS
 
 | Control | Function |
 |---|---|
-| **RATE** | Note value per step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = triplet) |
-| **LENGTH** | Number of steps, 1–16. Odd lengths (5, 7, 11 …) run against the bar |
-| **SCALE** | Snaps the PITCH knobs: **OFF** (continuous), **CHROMATIC** (semitones), **MAJOR**, **MINOR**, **PENTATONIC** (minor pentatonic). The root is always the set FREQUENCY |
+| **SCALE** | Snaps the PITCH knobs: **OFF** (continuous), **CHROMATIC** (semitones), **MAJOR**, **MINOR**, **PENTATONIC** (minor pentatonic) |
+| **ROOT** | Transposes the whole pattern, C … B: a step on 0 plays the root, C = no change, D = 2 semitones up … B = 11 up (counted from the set FREQUENCY). Works with every SCALE setting – the scale is built on the root |
 | **GLIDE** | The pitch slides from step to step instead of jumping, up to 1 s. Fully left = off |
+| **SWING** | 50 % (straight) … 75 %: every second step comes later – 66 % is a triplet shuffle. Works on the INT and HOST clock (on HOST it follows the bar), not with a cable in ADV/CLK |
 
 ### LFO
 
@@ -371,7 +386,7 @@ preset.
 | **MENU** or a click on the name | All presets at a glance, plus **Save as…**, **Rename…**, **Delete** and **Open preset folder** |
 
 **What a preset contains:** all knobs and switches, the whole step pattern (pitch, velocity, on/off,
-length, rate, scale, glide), the LFO and the patch cables. **Not** included are **RUN/STOP** and
+ratchet, chance, length, rate, scale, root, glide, swing), the LFO and the patch cables. **Not** included are **RUN/STOP** and
 **INT/HOST** – so loading a preset never starts or stops the sequencer.
 
 **Factory presets** are built in and read-only. To keep a changed version, press **SAVE** and give it a
@@ -459,7 +474,7 @@ are also built in as factory presets. Clock positions refer to the knob position
 - VCO 1 on SQR, FREQUENCY 10 o'clock, EG AMOUNT centre
 - FILTER: CUTOFF 9 o'clock, RESONANCE 3 o'clock, EG AMOUNT 2 o'clock
 - DECAY: FILTER 10 o'clock, VCA 1 o'clock
-- Service board: SCALE MINOR, GLIDE 9 o'clock, LENGTH 16; then spread the PITCH knobs
+- LENGTH 16; service board: SCALE MINOR, GLIDE 9 o'clock; then spread the PITCH knobs
 
 **Moving groove**
 - Any sound, plus the LFO on the service board: TARGET CUTOFF, SHAPE TRIANGLE, jumper on SYNC, RATE 1 BAR, DEPTH 12 o'clock
@@ -520,6 +535,8 @@ These are the parameter names in your DAW's automation.
 | Seq Pitch To | VCO 1+2 / Off / VCO 2 | VCO 1+2 |
 | Seq Length | 1–16 | 8 |
 | Seq Pitch Scale | Off / Chromatic / Major / Minor / Pentatonic | Off |
+| Seq Root | C … B | C |
+| Swing | 50–75 % | 50 % |
 | Glide | Off – 1 s | Off |
 | LFO Rate | 0.05–40 Hz | about 1 Hz |
 | LFO Sync Rate | 4 Bars … 1/32 | 1 Bar |
@@ -530,8 +547,10 @@ These are the parameter names in your DAW's automation.
 | Step 1 … 16 Pitch | −24 … +24 semitones | 0 |
 | Step 1 … 16 Velocity | 0–100 % | 100 % |
 | Step 1 … 16 On | Off / On | On |
+| Step 1 … 16 Ratchet | 1x–4x | 1x |
+| Step 1 … 16 Chance | 0–100 % | 100 % |
 
-The "Steps 1-8 / 9-16" view, the open/closed service hatch and the patch cables are saved with the project but cannot be automated.
+The "Steps 1-8 / 9-16" view, the VELOCITY / RATCHET / CHANCE choice, the open/closed service hatch and the patch cables are saved with the project but cannot be automated.
 
 ---
 

@@ -32,6 +32,7 @@ PS8AudioProcessor::PS8AudioProcessor()
     refs.tempo = raw (id::tempo);           refs.run = raw (id::run);           refs.hostClock = raw (id::hostClock);
     refs.rate = raw (id::rate);             refs.pitchTarget = raw (id::pitchTarget);
     refs.length = raw (id::length);         refs.scale = raw (id::scale);       refs.glide = raw (id::glide);
+    refs.root = raw (id::root);             refs.swing = raw (id::swing);
     refs.lfoRate = raw (id::lfoRate);       refs.lfoDivision = raw (id::lfoDivision);
     refs.lfoSync = raw (id::lfoSync);       refs.lfoShape = raw (id::lfoShape);
     refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
@@ -43,6 +44,8 @@ PS8AudioProcessor::PS8AudioProcessor()
         refs.pitch[(size_t) i] = raw (id::stepPitch (i));
         refs.velocity[(size_t) i] = raw (id::stepVelocity (i));
         refs.on[(size_t) i] = raw (id::stepOn (i));
+        refs.ratchet[(size_t) i] = raw (id::stepRatchet (i));
+        refs.chance[(size_t) i] = raw (id::stepChance (i));
     }
 }
 
@@ -66,6 +69,10 @@ void PS8AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine.setSettings (readSettings ((double) refs.tempo->load()));
     engine.prepare (sampleRate * oversamplingFactor);
     sequencer.prepare (sampleRate);
+    hostSampleRate = sampleRate;
+    ratchet = {};
+    swingPending = {};
+    samplesSinceClock = -1.0;
     hostWasRunning = false;
     runGate = clockEdge = resetEdge = {};
     loadMeasurer.reset (sampleRate, samplesPerBlock);
@@ -116,16 +123,56 @@ double PS8AudioProcessor::lfoBeats() const noexcept
     return ps8::params::lfoDivisionBeats[(size_t) index];
 }
 
-void PS8AudioProcessor::playStep (int step, float velocityScale) noexcept
+void PS8AudioProcessor::playStep (int step, float velocityScale, bool clocked) noexcept
 {
     const auto i = (size_t) step;
     display.step = step;
+    ratchet.remaining = 0;   // a new step cuts the rest of the previous one
 
-    if (refs.on[i]->load() > 0.5f)
+    if (refs.on[i]->load() <= 0.5f)
+        return;
+
+    if (clocked && random.nextFloat() >= refs.chance[i]->load())
+        return;
+
+    const auto scale = (ps8::seq::Scale) juce::jlimit (0, 4, juce::roundToInt (refs.scale->load()));
+    const auto root = juce::jlimit (0, 11, juce::roundToInt (refs.root->load()));
+    const auto semitones = ps8::seq::stepPitch (ps8::dsp::stepSemitones (refs.pitch[i]->load()), scale, root);
+    const auto velocity = refs.velocity[i]->load() * velocityScale;
+    engine.trigger (velocity, semitones);
+
+    if (const auto hits = juce::jlimit (1, ps8::params::maxRatchet, juce::roundToInt (refs.ratchet[i]->load())); hits > 1)
     {
-        const auto scale = (ps8::seq::Scale) juce::jlimit (0, 4, juce::roundToInt (refs.scale->load()));
-        const auto semitones = ps8::seq::quantise (ps8::dsp::stepSemitones (refs.pitch[i]->load()), scale);
-        engine.trigger (refs.velocity[i]->load() * velocityScale, semitones);
+        ratchet.remaining = hits - 1;
+        ratchet.interval = ratchet.countdown = juce::jmax (1.0, stepSamples / hits);
+        ratchet.velocity = velocity;
+        ratchet.semitones = semitones;
+        ratchet.clocked = clocked;
+    }
+}
+
+void PS8AudioProcessor::clockStep (int step, bool offbeat) noexcept
+{
+    // a pending offbeat always plays before the next step
+    if (swingPending.step >= 0)
+        playStep (std::exchange (swingPending.step, -1), 1.0f, true);
+
+    // swing 50 % = straight, 75 % = the offbeat sits halfway into its step
+    const auto delay = (refs.swing->load() - 0.5) * 2.0 * stepSamples;
+
+    if (offbeat && delay >= 1.0)
+        swingPending = { step, delay };
+    else
+        playStep (step, 1.0f, true);
+}
+
+void PS8AudioProcessor::playRatchets() noexcept
+{
+    if (ratchet.remaining > 0 && --ratchet.countdown <= 0.0)
+    {
+        engine.trigger (ratchet.velocity, ratchet.semitones);
+        ratchet.countdown += ratchet.interval;
+        --ratchet.remaining;
     }
 }
 
@@ -223,7 +270,7 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     const auto resetPatched = engine.isPatched (patch::resetIn);
     const auto tempoPatched = engine.isPatched (patch::tempoIn);
 
-    if (! clockPatched) clockEdge = {};
+    if (! clockPatched) { clockEdge = {}; samplesSinceClock = -1.0; }
     if (! runPatched)   runGate = {};
     if (! resetPatched) resetEdge = {};
 
@@ -269,6 +316,8 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     if (scramRequest.exchange (false))
     {
         engine.panic();
+        ratchet = {};
+        swingPending = {};
         sequencer.reset();
         sequencer.stop();
         numTicks = 0;
@@ -292,6 +341,10 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     int nextTick = 0;
     bool running = false;
     auto shownBpm = bpm;
+    const auto gridSamples = hostSampleRate * 60.0 / ps8::seq::stepsPerQuarter (rate);
+
+    if (! clockPatched)
+        stepSamples = gridSamples / bpm;
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -306,14 +359,26 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
         if (clockPatched)
         {
+            // an external clock sets the step length by its own period
+            if (clockEdgeNow)
+            {
+                if (samplesSinceClock > 0.0)
+                    stepSamples = samplesSinceClock;
+
+                samplesSinceClock = 0.0;
+            }
+
+            if (samplesSinceClock >= 0.0)
+                samplesSinceClock += 1.0;
+
             if (clockEdgeNow && running)
-                playStep (sequencer.advance(), 1.0f);
+                playStep (sequencer.advance(), 1.0f, true);
         }
         else if (followHost)
         {
             for (; nextTick < numTicks && ticks[(size_t) nextTick].position <= i; ++nextTick)
                 if (running)
-                    playStep (ticks[(size_t) nextTick].step, 1.0f);
+                    clockStep (ticks[(size_t) nextTick].step, ticks[(size_t) nextTick].offbeat);
         }
         else if (running)
         {
@@ -321,14 +386,26 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             const auto sampleBpm = tempoPatched ? juce::jlimit (1.0, 2000.0, bpm * std::exp2 (5.0 * engine.input (patch::tempoIn)))
                                                 : bpm;
             shownBpm = sampleBpm;
+            stepSamples = gridSamples / sampleBpm;
 
             if (const auto step = sequencer.clockInternal (sampleBpm, rate); step >= 0)
-                playStep (step, 1.0f);
+                clockStep (step, sequencer.isOffbeat());
         }
         else
         {
             sequencer.stop();
         }
+
+        // stopping the sequencer also stops the rest of a clocked ratchet and a waiting offbeat
+        if (! running && ratchet.clocked)
+            ratchet.remaining = 0;
+
+        if (! running)
+            swingPending = {};
+        else if (swingPending.step >= 0 && --swingPending.countdown <= 0.0)
+            playStep (std::exchange (swingPending.step, -1), 1.0f, true);
+
+        playRatchets();
 
         for (; event != midi.cend() && juce::jlimit (0, juce::jmax (0, numSamples - 1), (*event).samplePosition) <= i; ++event)
             handleMidi ((*event).getMessage());

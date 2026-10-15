@@ -7,6 +7,8 @@ namespace ps8::params
     juce::String id::stepPitch (int step)    { return "step" + juce::String (step + 1) + "Pitch"; }
     juce::String id::stepVelocity (int step) { return "step" + juce::String (step + 1) + "Velocity"; }
     juce::String id::stepOn (int step)       { return "step" + juce::String (step + 1) + "On"; }
+    juce::String id::stepRatchet (int step)  { return "step" + juce::String (step + 1) + "Ratchet"; }
+    juce::String id::stepChance (int step)   { return "step" + juce::String (step + 1) + "Chance"; }
 
     namespace
     {
@@ -151,6 +153,10 @@ namespace ps8::params
         layout.add (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { id::scale, 1 }, "Seq Pitch Scale",
             juce::StringArray { "Off", "Chromatic", "Major", "Minor", "Pentatonic" }, 0));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { id::root, 1 }, "Seq Root",
+            juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 0));
+        add (layout, id::swing, "Swing", 0.5f, 0.75f, 0.5f, [] (float v, int) { return percent (v); }, percentFromText);
         add (layout, id::glide, "Glide", 0.0f, 1.0f, 0.0f,
              [] (float v, int) { return v <= 0.0316f ? juce::String ("Off") : seconds (dsp::glideSeconds (v)); },
              [] (const juce::String& t) { return t.trim().equalsIgnoreCase ("Off") ? 0.0f : std::sqrt (std::max (0.0f, secondsFromText (t))); });
@@ -160,6 +166,10 @@ namespace ps8::params
         layout.add (std::make_unique<juce::AudioParameterBool> (
             juce::ParameterID { id::serviceOpen, 1 }, "Service Hatch", false,
             boolAttributes ("Closed", "Open").withAutomatable (false)));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { id::stepRow, 1 }, "Step Knob Row",
+            juce::StringArray { "Velocity", "Ratchet", "Chance" }, 0,
+            juce::AudioParameterChoiceAttributes().withAutomatable (false)));
 
         add (layout, id::lfoRate, "LFO Rate", 0.0f, 1.0f, 0.45f,
              [] (float v, int) { return juce::String (dsp::lfoHz (v), 2) + " Hz"; },
@@ -189,6 +199,11 @@ namespace ps8::params
             add (layout, id::stepVelocity (i), "Step " + n + " Velocity", 0.0f, 1.0f, 1.0f,
                  [] (float v, int) { return percent (v); }, percentFromText);
             addBool (layout, id::stepOn (i), "Step " + n + " On", true, "Off", "On");
+            layout.add (std::make_unique<juce::AudioParameterInt> (
+                juce::ParameterID { id::stepRatchet (i), 1 }, "Step " + n + " Ratchet", 1, maxRatchet, 1,
+                juce::AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return juce::String (v) + "x"; })));
+            add (layout, id::stepChance (i), "Step " + n + " Chance", 0.0f, 1.0f, 1.0f,
+                 [] (float v, int) { return percent (v); }, percentFromText);
         }
 
         return layout;

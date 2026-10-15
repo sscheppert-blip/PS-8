@@ -21,6 +21,7 @@ private:
     void timerCallback() override;
     void scram();
     void showPage (int page);
+    void showStepRow (int row);
     void setService (bool open);
     void animateHatch();
     void paintModules (juce::Graphics&) const;
@@ -57,18 +58,19 @@ private:
     ps8::ui::Hood* hood = nullptr;
     ps8::ui::ServiceBoard* board = nullptr;
     ps8::ui::PageTabs* pageTabs = nullptr;
+    ps8::ui::SelectorKeys* stepRowKeys = nullptr;
     ps8::ui::Patchbay* patchbay = nullptr;
     ps8::ui::ProgramDisplay* programDisplay = nullptr;
 
     struct StepColumn
     {
         ps8::ui::Knob* pitch = nullptr;
-        ps8::ui::Knob* velocity = nullptr;
+        ps8::ui::Knob* middle = nullptr;   // velocity, ratchet or chance (see stepRow)
         ps8::ui::LampButton* lamp = nullptr;
     };
 
     std::array<StepColumn, ps8::seq::maxSteps> stepColumns {};
-    int shownPage = -1;
+    int shownPage = -1, shownStepRow = 0;
 
     // service hatch: screws 0..1 turn out, then the lid 0..1 flips up
     struct Animator final : juce::Timer

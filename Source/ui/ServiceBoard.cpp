@@ -386,11 +386,11 @@ namespace ps8::ui
     //==============================================================================
     ServiceBoard::ServiceBoard (PS8AudioProcessor& p) : processor (p)
     {
-        // sequencer options
-        trimmer (id::rate, "RATE", 76.0f, 6);
-        trimmer (id::length, "LENGTH", 172.0f, 16);
-        trimmer (id::scale, "SCALE", 268.0f, 5);
-        trimmer (id::glide, "GLIDE", 364.0f, 11);
+        // sequencer options (RATE and LENGTH are on the front, in the sequencer's title bar)
+        trimmer (id::scale, "SCALE", 76.0f, 5);
+        trimmer (id::root, "ROOT", 172.0f, 12);
+        trimmer (id::glide, "GLIDE", 268.0f, 11);
+        trimmer (id::swing, "SWING", 364.0f, 11);
 
         // LFO
         lfoRate = &trimmer (id::lfoRate, "RATE", 500.0f, 11);

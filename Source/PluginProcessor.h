@@ -88,7 +88,12 @@ public:
 
 private:
     ps8::dsp::Settings readSettings (double bpm) const noexcept;
-    void playStep (int step, float velocityScale) noexcept;
+    // clocked = played by the sequencer clock (internal, host or ADV/CLK cable): only then does the
+    // step's chance apply. Ratchets always play.
+    void playStep (int step, float velocityScale, bool clocked = false) noexcept;
+    void playRatchets() noexcept;
+    // a clocked step from the grid: offbeats wait for the swing
+    void clockStep (int step, bool offbeat) noexcept;
     double lfoBeats() const noexcept;
     void handleMidi (const juce::MidiMessage&) noexcept;
     bool readExtInput (juce::AudioBuffer<float>&, int numSamples);
@@ -106,9 +111,9 @@ private:
                           * noiseLevel, * noisePink, * noiseVcf,
                           * cutoff, * resonance, * vcfEg, * highPass,
                           * pitchDecay, * vcfDecay, * vcaDecay, * vcaSlow, * drive, * volume,
-                          * tempo, * run, * hostClock, * rate, * pitchTarget, * length, * scale, * glide,
+                          * tempo, * run, * hostClock, * rate, * pitchTarget, * length, * scale, * glide, * root, * swing,
                           * lfoRate, * lfoDivision, * lfoSync, * lfoShape, * lfoDepth, * lfoTarget;
-        std::array<std::atomic<float>*, ps8::seq::maxSteps> pitch {}, velocity {}, on {};
+        std::array<std::atomic<float>*, ps8::seq::maxSteps> pitch {}, velocity {}, on {}, ratchet {}, chance {};
     } refs {};
 
     ps8::dsp::Engine engine;
@@ -120,6 +125,27 @@ private:
     std::unique_ptr<ps8::Presets> presets;
     bool editorCreated = false;
     ps8::patch::EdgeDetector runGate, clockEdge, resetEdge;
+
+    // Ratchets: the remaining hits of the current step, spread evenly over its length
+    struct Ratchet
+    {
+        int remaining = 0;
+        double interval = 0.0, countdown = 0.0;
+        float velocity = 0.0f, semitones = 0.0f;
+        bool clocked = false;
+    } ratchet;
+
+    // swing: the offbeat step waiting to be played
+    struct Swing
+    {
+        int step = -1;
+        double countdown = 0.0;
+    } swingPending;
+
+    double hostSampleRate = 48000.0;
+    double stepSamples = 6000.0;        // length of the current step, for the ratchets
+    double samplesSinceClock = -1.0;    // ADV/CLK cable: time since the last clock edge
+    juce::Random random;
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
     juce::AudioBuffer<float> zeroBuffer, oversampledBuffer, extBuffer;

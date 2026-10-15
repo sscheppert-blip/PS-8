@@ -120,13 +120,23 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
     {
         auto& column = stepColumns[(size_t) i];
         column.pitch = &knob (id::stepPitch (i), {}, stepX (i), seqTop + 84.0f, 16, true);
-        column.velocity = &knob (id::stepVelocity (i), {}, stepX (i), seqTop + 158.0f, 14);
+        column.middle = &knob (id::stepVelocity (i), {}, stepX (i), seqTop + 158.0f, 14);
         column.lamp = &make<ui::LampButton> (processor.getState(), id::stepOn (i));
         column.lamp->place ({ stepX (i), seqTop + 222.0f });
     }
 
     pageTabs = &make<ui::PageTabs> (processor.getState(), id::viewPage);
     pageTabs->setBounds (1060, (int) seqTop + 8, 112, 22);
+
+    // the clock rate and the sequence length sit in the title bar, mirroring the page tabs
+    make<ui::Stepper> (processor.getState(), id::rate, "RATE", 38.0f).setBounds (34, (int) seqTop + 8, 130, 22);
+    make<ui::Stepper> (processor.getState(), id::length, "LENGTH", 52.0f).setBounds (180, (int) seqTop + 8, 120, 22);
+
+    // what the middle row of step knobs sets
+    stepRowKeys = &make<ui::SelectorKeys> (processor.getState(), id::stepRow,
+                                           juce::StringArray { "VELOCITY", "RATCHET", "CHANCE" });
+    stepRowKeys->setBounds (190, (int) seqTop + 128, 74, 60);
+    showStepRow (stepRowKeys->getSelected());
 
     // cables hang over everything else
     patchbay = &make<ui::Patchbay> (processor);
@@ -224,11 +234,29 @@ void FrontPanel::showPage (int page)
         const auto visible = i / stepsPerPage == page;
         auto& column = stepColumns[(size_t) i];
         column.pitch->setVisible (visible);
-        column.velocity->setVisible (visible);
+        column.middle->setVisible (visible);
         column.lamp->setVisible (visible);
     }
 
     repaint();
+}
+
+void FrontPanel::showStepRow (int row)
+{
+    shownStepRow = row;
+
+    for (int i = 0; i < ps8::seq::maxSteps; ++i)
+    {
+        auto& knob = *stepColumns[(size_t) i].middle;
+
+        switch ((ps8::params::StepRow) row)
+        {
+            case ps8::params::StepRow::ratchet: knob.bind (processor.getState(), id::stepRatchet (i), ps8::params::maxRatchet); break;
+            case ps8::params::StepRow::chance:  knob.bind (processor.getState(), id::stepChance (i), 11); break;
+            case ps8::params::StepRow::velocity:
+            default:                            knob.bind (processor.getState(), id::stepVelocity (i), 11); break;
+        }
+    }
 }
 
 void FrontPanel::paintModules (juce::Graphics& g) const
@@ -258,7 +286,7 @@ void FrontPanel::paint (juce::Graphics& g)
     g.setColour (colours::plateText.withAlpha (0.35f));
     g.drawLine (182.0f, 32.0f, 182.0f, 104.0f, 1.0f);
     g.setColour (colours::hazard);
-    g.setFont (ui::stencilFont (46.0f));
+    g.setFont (ui::stencilFont (54.0f));
     g.drawText ("PS-8", juce::Rectangle<float> (38.0f, 28.0f, 140.0f, 50.0f), juce::Justification::centredLeft, false);
     ui::drawLabel (g, "PERCUSSION SYNTHESIZER", { 39.0f, 86.0f }, 9.5f, colours::plateText, juce::Justification::centredLeft);
     ui::drawLabel (g, "UNIT 08 - CONTROL ROOM B", { 39.0f, 101.0f }, 8.0f, colours::dimText, juce::Justification::centredLeft);
@@ -279,14 +307,13 @@ void FrontPanel::paint (juce::Graphics& g)
     for (int i = 0; i < stepsPerPage; ++i)
     {
         g.setColour (colours::ink);
-        g.setFont (ui::stencilFont (14.0f));
+        g.setFont (ui::stencilFont (17.0f));
         g.drawText (juce::String (shownPage * stepsPerPage + i + 1),
                     juce::Rectangle<float> (40.0f, 18.0f).withCentre ({ stepX (i), seqTop + 46.0f }),
                     juce::Justification::centred, false);
     }
 
     ui::drawLabel (g, "PITCH", { 230.0f, seqTop + 84.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
-    ui::drawLabel (g, "VELOCITY", { 230.0f, seqTop + 158.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
     ui::drawLabel (g, "STEP ON", { 230.0f, seqTop + 222.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
 
     ui::Patchbay::paintPanel (g, (float) designWidth);
@@ -324,6 +351,9 @@ void FrontPanel::timerCallback()
 
     if (const auto page = state.getRawParameterValue (id::viewPage)->load() > 0.5f ? 1 : 0; page != shownPage)
         showPage (page);
+
+    if (const auto row = stepRowKeys->getSelected(); row != shownStepRow)
+        showStepRow (row);
 
     const auto step = display.step.load();
     const auto length = juce::roundToInt (state.getRawParameterValue (id::length)->load());

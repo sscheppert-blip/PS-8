@@ -26,7 +26,7 @@ namespace ps8::ui
         inline const juce::Colour led        { 0xff9dff8a };
     }
 
-    juce::Font stencilFont (float height);
+    juce::Font stencilFont (float height);   // Saira Stencil One (embedded)
     juce::Font labelFont (float height);
 
     void drawScrew (juce::Graphics&, juce::Point<float> centre);
@@ -131,6 +131,52 @@ namespace ps8::ui
 
     private:
         bool on = true, current = false, alarm = false, inRange = true;
+        juce::ParameterAttachment attachment;
+    };
+
+    // Stack of illuminated select keys bound to a choice parameter (one key per choice, top to bottom);
+    // the lit key is the current choice.
+    class SelectorKeys final : public juce::Component
+    {
+    public:
+        SelectorKeys (juce::AudioProcessorValueTreeState&, const juce::String& paramId, juce::StringArray names);
+
+        int getSelected() const noexcept { return selected; }
+        void paint (juce::Graphics&) override;
+        void mouseUp (const juce::MouseEvent&) override;
+
+    private:
+        juce::Rectangle<float> keyBounds (int index) const;
+
+        juce::StringArray names;
+        int selected = 0;
+        juce::ParameterAttachment attachment;
+    };
+
+    // Compact value selector for a stepped parameter (choice or int) on a dark title bar:
+    // label, then the value between two arrows. The arrows step, the value opens a list,
+    // the mouse wheel steps, double-click resets.
+    class Stepper final : public juce::Component
+    {
+    public:
+        Stepper (juce::AudioProcessorValueTreeState&, const juce::String& paramId, const juce::String& label,
+                 float labelWidth);
+
+        void paint (juce::Graphics&) override;
+        void mouseUp (const juce::MouseEvent&) override;
+        void mouseDoubleClick (const juce::MouseEvent&) override;
+        void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+
+    private:
+        juce::Rectangle<float> box() const;
+        void stepBy (int delta);
+        void showList();
+
+        juce::RangedAudioParameter& parameter;
+        juce::String label;
+        float labelWidth;
+        float value = 0.0f;
+        float wheel = 0.0f;
         juce::ParameterAttachment attachment;
     };
 
