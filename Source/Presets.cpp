@@ -122,6 +122,7 @@ namespace ps8
         }
 
         tree.setProperty ("patch", PS8AudioProcessor::patchToString (processor.getPatch()), nullptr);
+        tree.appendChild (processor.getPatterns().toTree(), nullptr);
         return tree;
     }
 
@@ -146,6 +147,9 @@ namespace ps8
         }
 
         processor.setPatch (PS8AudioProcessor::patchFromString (tree.getProperty ("patch").toString()));
+
+        // the PARAM nodes hold the pattern that plays; older presets have no other patterns
+        processor.getPatterns().fromTree (tree.getChildWithName ("PATTERNS"));
     }
 
     bool Presets::load (const Entry& entry)
@@ -289,6 +293,8 @@ namespace ps8
         for (const auto mask : processor.getPatch())
             values.push_back ((float) mask);
 
+        const auto patterns = processor.getPatterns().fingerprint();
+        values.insert (values.end(), patterns.begin(), patterns.end());
         return values;
     }
 

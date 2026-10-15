@@ -225,7 +225,7 @@ Mit den Buchsen unten leitest du Hüllkurven, Oszillatoren und den Sequencer per
 | **Leuchttaster** (STEP ON) | Step an/aus. **Grün** = an, **dunkel** = aus, **amber** = spielt gerade. Steps hinter der eingestellten Länge sind abgedunkelt |
 | **TEMPO** | Eigenes Tempo 20–300 BPM (nur bei **INT**) |
 | **RUN / STOP** | Sequencer an/aus |
-| **INT / HOST** | **INT**: eigenes Tempo, startet sofort mit RUN. **HOST**: läuft nur, wenn die DAW spielt, und hängt fest am Takt |
+| **INT / HOST** | **INT**: eigenes Tempo, startet sofort mit RUN. **HOST**: läuft nur, wenn die DAW spielt, und hängt fest am Takt (mit HOST passiert bei RUN also erst etwas, wenn du in der DAW Play drückst). Die Standalone-App startet auf INT; HOST wartet dort auf einen DAW-Takt, der nie kommt |
 | **PITCH TO** 1+2 / OFF / VCO 2 | Wohin die Step-Tonhöhe geht: beide Oszillatoren, nirgends, oder nur VCO 2 |
 | **TRIG** | Aktuellen Step nochmal spielen |
 | **ADV** | Einen Step weiter und spielen |
@@ -233,6 +233,11 @@ Mit den Buchsen unten leitest du Hüllkurven, Oszillatoren und den Sequencer per
 | **RATE** (Kopfzeile links) | Notenwert pro Step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = Triole) |
 | **LENGTH** (Kopfzeile links) | Anzahl der Steps, 1–16. Damit gehen auch ungerade Rhythmen (5, 7, 11 …), die gegen den Takt laufen |
 | **1-8 / 9-16** (Reiter in der Kopfzeile) | Welche acht Steps angezeigt werden. Ein Punkt leuchtet auf der Seite, die gerade spielt |
+| **PATTERN 1–8** (Kopfzeile) | Acht Patterns pro Preset; das helle spielt. Amber-Nummern haben Steps drin, blasse sind leer. Rechtsklick auf eine Taste: Pattern in ein anderes kopieren oder leeren |
+| **◀◀ ▶▶** (Kopfzeile) | Das ganze Pattern einen Step nach links / rechts schieben (rotiert innerhalb von LENGTH) |
+| **COPY / PASTE** | Die acht angezeigten Steps kopieren und auf die angezeigte Seite einfügen – in eine andere Seite oder ein anderes Pattern |
+| **RAND** | Zufall für Pitch, Velocity, Ratchet, Chance, Steps an/aus – oder alles – für die Steps innerhalb von LENGTH |
+| **UNDO** | Nimmt das letzte Werkzeug zurück (Schieben, Einfügen, RAND, Leeren, Kopieren in dieses Pattern). Nochmal gedrückt, stellt es es wieder her |
 
 **RATE und LENGTH:** Pfeil anklicken schaltet weiter, ein Klick auf den Wert öffnet eine Liste, das
 Mausrad geht auch; Doppelklick auf den Wert setzt zurück.
@@ -254,6 +259,15 @@ spielen die Ratchets mit.
 **Chance:** 0–100 % je Step. Bei jedem Durchlauf spielt der Step mit dieser Wahrscheinlichkeit – bei
 100 % immer (Standard), bei 0 % nie. Gewürfelt wird nur beim Takt (INT, HOST oder Kabel in ADV/CLK);
 TRIG, ADV und MIDI-Noten spielen immer.
+
+**Patterns:** Ein Pattern enthält die Steps (Pitch, Velocity, an/aus, Ratchet, Chance) und LENGTH; RATE,
+Swing, Scale und der Klang gehören zum Preset. Ein Klick auf eine Pattern-Taste wechselt sofort – der
+Sequencer bleibt an seiner Position. Das spielende Pattern liegt immer auf den Reglern, Automation und
+Regler funktionieren also wie gewohnt. Alle acht Patterns werden mit dem Projekt und im Preset
+gespeichert.
+
+**RAND** nimmt ganze Halbtöne innerhalb einer Oktave nach oben und unten (SCALE und ROOT gelten weiter)
+und lässt Step 1 an, damit das Pattern seine Eins behält.
 
 **Warum zwei gleiche Steps verschieden klingen können:** Die Oszillatoren laufen frei durch, wie
 analoge – ein Schlag beginnt dort, wo die Welle gerade steht. Bei tiefen Tönen (Kicks, Toms) ändert
@@ -392,8 +406,9 @@ seit dem Laden etwas verändert. Oben rechts steht, ob es ein **FACTORY**- oder 
 | **SAVE** | Den aktuellen Klang als eigenes Preset speichern. Gibt es den Namen schon, fragt PS-8 vor dem Überschreiben nach |
 | **MENU** oder Klick auf den Namen | Alle Presets auf einen Blick, dazu **Save as…** (Speichern unter), **Rename…** (Umbenennen), **Delete** (Löschen) und **Open preset folder** (Ordner öffnen) |
 
-**Was ein Preset enthält:** alle Regler und Schalter, das ganze Step-Pattern (Pitch, Velocity, an/aus,
-Ratchet, Chance, Länge, Rate, Scale, Root, Glide, Swing), den LFO und die Patch-Kabel. **Nicht** dabei sind **RUN/STOP** und
+**Was ein Preset enthält:** alle Regler und Schalter, alle acht Step-Patterns (Pitch, Velocity, an/aus,
+Ratchet, Chance, Länge) und welches davon spielt, Rate, Scale, Root, Glide, Swing, den LFO und die
+Patch-Kabel. **Nicht** dabei sind **RUN/STOP** und
 **INT/HOST** – ein Preset-Wechsel startet oder stoppt den Sequencer also nie.
 
 **Werks-Presets** sind eingebaut und schreibgeschützt. Willst du eine geänderte Fassung behalten,
@@ -589,8 +604,10 @@ und die DAW neu starten.
 Steps grün? Steht VELOCITY über 0? Wurde SCRAM gedrückt (dann RUN wieder einschalten)? Bremst ein
 Kabel in RUN, ADV/CLK oder VCA CV (Doppelklick auf die Buchse zieht es ab)?
 
-**Sequencer läuft nicht im Takt** – Schalter auf **HOST** stellen. Im Standalone gibt es keinen
-DAW-Takt, dort läuft PS-8 immer mit eigenem Tempo.
+**Sequencer startet nicht** – Mit **HOST** läuft er nur, solange die DAW spielt: in der DAW Play drücken
+oder auf **INT** stellen. In der Standalone-App **INT** nehmen (dort ab Werk eingestellt).
+
+**Sequencer läuft nicht im Takt** – Schalter auf **HOST** stellen.
 
 **Es pfeift** – RESONANCE zurückdrehen. Ganz rechts schwingt das Filter absichtlich selbst.
 

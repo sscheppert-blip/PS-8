@@ -10,7 +10,7 @@ namespace
 PS8AudioProcessor::PS8AudioProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                                        .withInput ("Ext In", juce::AudioChannelSet::stereo(), false)),
-      state (*this, nullptr, "PS8", ps8::params::createLayout())
+      state (*this, nullptr, "PS8", ps8::params::createLayout (wrapperType == wrapperType_Standalone))
 {
     auto raw = [this] (const juce::String& paramId)
     {
@@ -38,6 +38,7 @@ PS8AudioProcessor::PS8AudioProcessor()
     refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
 
     presets = std::make_unique<ps8::Presets> (*this);
+    patterns = std::make_unique<ps8::Patterns> (state);
 
     for (int i = 0; i < ps8::seq::maxSteps; ++i)
     {
@@ -281,7 +282,10 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     auto runSwitch = refs.run->load() > 0.5f;
     const auto rate = (ps8::seq::Rate) juce::jlimit (0, 5, juce::roundToInt (refs.rate->load()));
-    const auto followHost = refs.hostClock->load() > 0.5f && hostBpm.hasValue() && hostPpq.hasValue();
+    // HOST without a DAW clock (e.g. the Standalone app) waits instead of running on its own
+    const auto hostClockOn = refs.hostClock->load() > 0.5f;
+    const auto followHost = hostClockOn && hostBpm.hasValue() && hostPpq.hasValue();
+    const auto waitingForHost = hostClockOn && ! followHost;
     const auto bpm = followHost ? juce::jlimit (20.0, 999.0, *hostBpm) : (double) refs.tempo->load();
 
     sequencer.setLength (juce::roundToInt (refs.length->load()));
@@ -355,7 +359,7 @@ void PS8AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             runGate.process (engine.input (patch::runIn));
 
         const auto clockEdgeNow = clockPatched && clockEdge.process (engine.input (patch::advClockIn));
-        running = runSwitch && (! runPatched || runGate.high) && (! followHost || hostPlaying);
+        running = runSwitch && (! runPatched || runGate.high) && (! followHost || hostPlaying) && ! waitingForHost;
 
         if (clockPatched)
         {
@@ -537,6 +541,7 @@ void PS8AudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     auto tree = state.copyState();
     tree.setProperty (patchProperty, patchToString (getPatch()), nullptr);
     tree.setProperty (presetProperty, presets->getStateName(), nullptr);
+    tree.appendChild (patterns->toTree(), nullptr);
 
     if (const auto xml = tree.createXml())
         copyXmlToBinary (*xml, destData);
@@ -562,7 +567,11 @@ void PS8AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 
             tree.removeProperty (patchProperty, nullptr);
             tree.removeProperty (presetProperty, nullptr);
+
+            const auto savedPatterns = tree.getChildWithName ("PATTERNS");
+            tree.removeChild (savedPatterns, nullptr);
             state.replaceState (tree);
+            patterns->fromTree (savedPatterns);
             ++stateVersion;
 
             // CLAP hosts expect a value rescan after a state load (the wrapper doesn't send one itself);

@@ -98,7 +98,7 @@ namespace ps8::params
         }
     }
 
-    juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
+    juce::AudioProcessorValueTreeState::ParameterLayout createLayout (bool standalone)
     {
         Layout layout;
         const dsp::Settings d;
@@ -142,7 +142,7 @@ namespace ps8::params
         add (layout, id::tempo, "Tempo", 20.0f, 300.0f, 120.0f,
              [] (float v, int) { return juce::String (v, 1) + " BPM"; }, nullptr, 0.1f);
         addBool (layout, id::run, "Run", false, "Stop", "Run");
-        addBool (layout, id::hostClock, "Clock", true, "Internal", "Host");
+        addBool (layout, id::hostClock, "Clock", ! standalone, "Internal", "Host");
         layout.add (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { id::rate, 1 }, "Rate",
             juce::StringArray { "1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32" }, (int) seq::Rate::sixteenth));

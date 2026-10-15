@@ -438,6 +438,63 @@ static void testProcessor()
     check (std::abs (processor.getState().getRawParameterValue (id::cutoff)->load() - 0.123f) < 1.0e-3f, "state round trip");
 }
 
+// HOST clock as in a DAW: the transport already plays mid-song, then RUN is switched on
+static void testHostStart()
+{
+    namespace id = ps8::params::id;
+    constexpr double sampleRate = 44100.0;
+    constexpr int blockSize = 441;
+
+    PS8AudioProcessor processor;
+    processor.setPlayConfigDetails (0, 2, sampleRate, blockSize);
+    processor.prepareToPlay (sampleRate, blockSize);
+
+    TestPlayHead playHead;
+    playHead.playing = true;
+    playHead.ppq = 13.37;
+    playHead.bpm = 120.0;
+    processor.setPlayHead (&playHead);
+
+    juce::AudioBuffer<float> buffer (2, blockSize);
+    auto play = [&] (int blocks, int& steps, float& level)
+    {
+        int last = processor.getDisplay().step.load();
+
+        for (int b = 0; b < blocks; ++b)
+        {
+            juce::MidiBuffer none;
+            buffer.clear();
+            processor.processBlock (buffer, none);
+            level = std::max (level, buffer.getMagnitude (0, blockSize));
+            playHead.ppq += blockSize * playHead.bpm / 60.0 / sampleRate;
+
+            if (const auto step = processor.getDisplay().step.load(); step != last)
+                ++steps, last = step;
+        }
+    };
+
+    int steps = 0;
+    float level = 0.0f;
+
+    // HOST without any DAW clock (like the Standalone app) waits instead of running on its own
+    processor.setPlayHead (nullptr);
+    setParam (processor, id::run, 1.0f);
+    play (100, steps, level);
+    check (steps == 0 && level < 1.0e-4f && ! processor.getDisplay().running.load(), "HOST without a DAW clock stays stopped");
+    setParam (processor, id::run, 0.0f);
+    processor.setPlayHead (&playHead);
+
+    play (20, steps, level);
+    check (steps == 0 && level < 1.0e-4f, "host clock, RUN off: silent while the DAW plays");
+
+    setParam (processor, id::run, 1.0f);
+    steps = 0;
+    play (200, steps, level);   // 2 s = 16 sixteenths at 120 BPM
+    check (steps >= 15 && steps <= 17 && level > 0.05f && processor.getDisplay().running.load(),
+           "host clock: switching RUN on while the DAW plays starts the sequencer");
+    processor.setPlayHead (nullptr);
+}
+
 //==============================================================================
 static void testPatch()
 {
@@ -873,6 +930,161 @@ static void testPresets()
     }
 }
 
+//==============================================================================
+// Pattern memory and step tools
+static void testPatterns()
+{
+    namespace id = ps8::params::id;
+    using Randomise = ps8::Patterns::Randomise;
+
+    PS8AudioProcessor processor;
+    auto& patterns = processor.getPatterns();
+    auto value = [&processor] (const juce::String& paramId) { return processor.getState().getRawParameterValue (paramId)->load(); };
+    auto semitones = [&value] (int step) { return value (id::stepPitch (step)) * 24.0f; };
+    auto setSemitones = [&processor] (int step, float st) { setParam (processor, id::stepPitch (step), st / 24.0f); };
+
+    bool empty = patterns.current() == 0;
+    for (int i = 0; i < ps8::Patterns::numPatterns; ++i)
+        empty = empty && ! patterns.hasContent (i);
+    check (empty, "a new instance plays pattern 1 and all eight patterns are empty");
+
+    // pattern 1: a little melody over five steps
+    for (int s = 0; s < 5; ++s)
+        setSemitones (s, (float) (s + 1));
+    setParam (processor, id::length, 5.0f);
+    check (patterns.hasContent (0), "editing the steps fills the current pattern");
+
+    patterns.select (1);
+    check (patterns.current() == 1 && near (semitones (0), 0.0f) && juce::roundToInt (value (id::length)) == 8,
+           "switching to an empty pattern loads its (Init) steps and length");
+    setSemitones (2, -7.0f);
+
+    patterns.select (0);
+    check (near (semitones (0), 1.0f) && near (semitones (4), 5.0f) && juce::roundToInt (value (id::length)) == 5,
+           "switching back brings pattern 1 back");
+    patterns.select (1);
+    check (near (semitones (2), -7.0f), "and pattern 2 kept its edit");
+    patterns.select (0);
+
+    patterns.copy (0, 3);
+    patterns.select (3);
+    check (near (semitones (1), 2.0f) && juce::roundToInt (value (id::length)) == 5, "copy a pattern to another slot");
+    patterns.clear (3);
+    check (! patterns.hasContent (3) && near (semitones (1), 0.0f), "clear the current pattern");
+    patterns.select (0);
+
+    // shift rotates within LENGTH; steps behind it stay where they are
+    setSemitones (7, 9.0f);
+    patterns.shift (-1);
+    check (near (semitones (0), 2.0f) && near (semitones (3), 5.0f) && near (semitones (4), 1.0f) && near (semitones (7), 9.0f),
+           "shift left rotates the steps within the length");
+    patterns.shift (1);
+    check (near (semitones (0), 1.0f) && near (semitones (4), 5.0f), "shift right turns it back");
+
+    // copy / paste a page of eight steps
+    setParam (processor, id::stepRatchet (1), 3.0f);
+    patterns.copyPage (0);
+    patterns.pastePage (1);
+    check (patterns.canPaste() && near (semitones (8), 1.0f) && near (semitones (12), 5.0f)
+               && juce::roundToInt (value (id::stepRatchet (9))) == 3,
+           "copy page 1-8 and paste it into 9-16");
+
+    // randomise only what was asked for, only within LENGTH, in whole semitones
+    {
+        const auto velocityBefore = value (id::stepVelocity (2));
+        const auto pitchBehind = semitones (6);
+        juce::Random random (1234);
+        patterns.randomise (Randomise::pitch, random);
+
+        bool whole = true, changed = false;
+        for (int s = 0; s < 5; ++s)
+        {
+            whole = whole && near (semitones (s), std::round (semitones (s))) && std::abs (semitones (s)) <= 12.0f;
+            changed = changed || ! near (semitones (s), (float) (s + 1));
+        }
+
+        check (whole && changed && near (value (id::stepVelocity (2)), velocityBefore) && near (semitones (6), pitchBehind),
+               "RAND pitch: whole semitones within the length, nothing else touched");
+
+        patterns.undo();
+        check (near (semitones (0), 1.0f) && near (semitones (4), 5.0f), "UNDO takes the last tool back");
+        patterns.undo();
+        check (! near (semitones (0), 1.0f) || ! near (semitones (1), 2.0f) || ! near (semitones (2), 3.0f), "UNDO again redoes it");
+        patterns.undo();
+
+        juce::Random again (99);
+        patterns.randomise (Randomise::steps, again);
+        check (value (id::stepOn (0)) > 0.5f, "RAND steps keeps step 1 on");
+        patterns.undo();
+    }
+
+    // all eight patterns travel with the project ...
+    {
+        patterns.select (2);
+        setSemitones (0, 11.0f);
+
+        juce::MemoryBlock block;
+        processor.getStateInformation (block);
+
+        PS8AudioProcessor other;
+        other.setStateInformation (block.getData(), (int) block.getSize());
+        auto& otherPatterns = other.getPatterns();
+        const auto otherPitch = [&other] (int step) { return other.getState().getRawParameterValue (id::stepPitch (step))->load() * 24.0f; };
+
+        const auto restored = otherPatterns.current() == 2 && near (otherPitch (0), 11.0f);
+        otherPatterns.select (0);
+        check (restored && near (otherPitch (0), 1.0f) && near (otherPitch (4), 5.0f) && otherPatterns.hasContent (1),
+               "the project saves all patterns and the one that plays");
+    }
+
+    // ... and with a preset; Init and older presets start with empty patterns
+    {
+        auto& presets = processor.getPresets();
+        presets.save ("Pattern Test");
+        presets.loadInit();
+        check (patterns.current() == 0 && ! patterns.hasContent (0) && ! patterns.hasContent (1), "Init empties all patterns");
+
+        const auto user = presets.userPresets();
+        const auto it = std::find_if (user.begin(), user.end(), [] (const auto& e) { return e.name == "Pattern Test"; });
+        check (it != user.end() && presets.load (*it) && patterns.current() == 2 && near (semitones (0), 11.0f)
+                   && patterns.hasContent (0) && patterns.hasContent (1),
+               "a preset brings back all its patterns");
+
+        patterns.select (0);
+        check (presets.isModified(), "switching the pattern counts as a change to the preset");
+        presets.remove (presets.current());
+    }
+
+    // the keys in the title bar
+    {
+        std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+        ps8::ui::SequencerTools* tools = nullptr;
+        std::function<void (juce::Component&)> find = [&] (juce::Component& c)
+        {
+            if (auto* t = dynamic_cast<ps8::ui::SequencerTools*> (&c))
+                tools = t;
+            for (auto* child : c.getChildren())
+                find (*child);
+        };
+        find (*editor);
+
+        bool ok = tools != nullptr;
+
+        if (ok)
+        {
+            tools->press (ps8::ui::SequencerTools::Key::pattern, 5);
+            ok = patterns.current() == 5;
+            tools->press (ps8::ui::SequencerTools::Key::pattern, 0);
+            tools->press (ps8::ui::SequencerTools::Key::shiftLeft);
+            ok = ok && patterns.current() == 0 && near (semitones (0), 2.0f) && patterns.canUndo();
+            tools->press (ps8::ui::SequencerTools::Key::undo);
+            ok = ok && near (semitones (0), 1.0f);
+        }
+
+        check (ok, "pattern keys and step tools in the sequencer title bar");
+    }
+}
+
 static void testDoubleClick()
 {
     PS8AudioProcessor processor;
@@ -1219,9 +1431,11 @@ int main (int argc, char** argv)
     testEngine();
     testSequencer();
     testProcessor();
+    testHostStart();
     testPatch();
     testPatchbayMouse();
     testPresets();
+    testPatterns();
     testDoubleClick();
     testRatchetAndChance();
     testTextConversions();

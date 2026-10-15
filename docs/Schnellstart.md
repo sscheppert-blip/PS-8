@@ -37,12 +37,14 @@ Doppelklick auf einen Regler setzt ihn zurück. Beim Drehen zeigt eine kleine An
 | **Leuchttaster** | Step an/aus. Amber = läuft gerade |
 | **TEMPO** | Eigenes Tempo (nur bei **INT**) |
 | **RUN / STOP** | Sequencer an/aus |
-| **INT / HOST** | Eigenes Tempo oder Takt der DAW (dann laufen die Steps mit dem Takt mit) |
+| **INT / HOST** | Eigenes Tempo oder Takt der DAW (dann laufen die Steps nur, solange die DAW spielt). Standalone-App: ab Werk INT |
 | **PITCH TO** | Step-Pitch geht auf beide VCOs, aus, oder nur auf VCO 2 |
 | **TRIG / ADV / RESET** | Aktuellen Step nochmal / nächster Step / zurück auf Step 1 |
 | **SCRAM** | Not-Aus: Sequencer stoppt, Sound ist sofort weg |
 | **RATE / LENGTH** | Links in der Sequencer-Kopfzeile: Notenwert pro Step (1/4 … 1/32) und Anzahl Steps (1–16). Pfeile, Klick auf den Wert für eine Liste, oder Mausrad |
 | **1-8 / 9-16** | Reiter in der Sequencer-Kopfzeile: welche Steps angezeigt werden (Punkt = spielt gerade). Ab LENGTH 9 gibt es die zweite Seite |
+| **PATTERN 1–8** | Acht Patterns pro Preset, Klick wechselt sofort. Rechtsklick: kopieren / leeren |
+| **◀◀ ▶▶ · COPY · PASTE · RAND · UNDO** | Pattern verschieben, Seite kopieren und einfügen, Zufall (Menü), letzten Schritt zurücknehmen |
 
 ## Unter der Haube (Extras – ab Werk aus)
 

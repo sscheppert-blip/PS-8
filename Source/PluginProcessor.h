@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include <clap-juce-extensions/clap-juce-extensions.h>
 
+#include "Patterns.h"
 #include "Presets.h"
 #include "dsp/Engine.h"
 #include "dsp/Sequencer.h"
@@ -79,6 +80,7 @@ public:
 
     // Presets; the plugin state also remembers the preset's name
     ps8::Presets& getPresets() noexcept { return *presets; }
+    ps8::Patterns& getPatterns() noexcept { return *patterns; }
     // changes whenever a saved state is loaded
     uint32_t getStateVersion() const noexcept { return stateVersion.load(); }
 
@@ -123,6 +125,7 @@ private:
     std::array<std::atomic<ps8::patch::Mask>, ps8::patch::numInputs> patchMasks {};
     std::atomic<uint32_t> patchVersion { 0 }, stateVersion { 0 };
     std::unique_ptr<ps8::Presets> presets;
+    std::unique_ptr<ps8::Patterns> patterns;
     bool editorCreated = false;
     ps8::patch::EdgeDetector runGate, clockEdge, resetEdge;
 

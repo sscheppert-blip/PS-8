@@ -132,6 +132,10 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
     make<ui::Stepper> (processor.getState(), id::rate, "RATE", 38.0f).setBounds (34, (int) seqTop + 8, 130, 22);
     make<ui::Stepper> (processor.getState(), id::length, "LENGTH", 52.0f).setBounds (180, (int) seqTop + 8, 120, 22);
 
+    // patterns and step tools share the title bar with rate, length and the page tabs
+    sequencerTools = &make<ui::SequencerTools> (processor);
+    sequencerTools->setTopLeftPosition (312, (int) seqTop + 8);
+
     // what the middle row of step knobs sets
     stepRowKeys = &make<ui::SelectorKeys> (processor.getState(), id::stepRow,
                                            juce::StringArray { "VELOCITY", "RATCHET", "CHANCE" });
@@ -302,7 +306,14 @@ void FrontPanel::paint (juce::Graphics& g)
     ui::drawLabel (g, "STEP", { 912.0f, 38.0f }, 10.0f, colours::dimText);
 
     // the module row is painted by the hood (see paintModules)
-    ui::drawPlate (g, { 20.0f, seqTop, 1160.0f, 268.0f }, "SEQUENCER");
+    ui::drawPlate (g, { 20.0f, seqTop, 1160.0f, 268.0f }, {});
+
+    // title between the pattern keys and the step tools
+    g.setColour (colours::plateText);
+    g.setFont (ui::stencilFont (17.0f));
+    g.drawText ("SEQUENCER", juce::Rectangle<float> (312.0f + ui::SequencerTools::patternsEnd, seqTop + 8.0f,
+                                                     ui::SequencerTools::toolsStart - ui::SequencerTools::patternsEnd, 22.0f),
+                juce::Justification::centred, false);
 
     for (int i = 0; i < stepsPerPage; ++i)
     {
@@ -339,6 +350,7 @@ void FrontPanel::timerCallback()
     auto& display = processor.getDisplay();
     patchbay->update();
     programDisplay->update();
+    sequencerTools->update();
     board->update();
 
     if (const auto open = state.getRawParameterValue (id::serviceOpen)->load() > 0.5f; open != serviceOpen)

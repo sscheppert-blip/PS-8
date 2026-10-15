@@ -52,12 +52,14 @@ set(PS8_SOURCES
     Source/dsp/Sequencer.cpp
     Source/FactoryPresets.cpp
     Source/Parameters.cpp
+    Source/Patterns.cpp
     Source/Presets.cpp
     Source/PluginProcessor.cpp
     Source/StandaloneApp.cpp
     Source/PluginEditor.cpp
     Source/ui/Patchbay.cpp
     Source/ui/ProgramDisplay.cpp
+    Source/ui/SequencerTools.cpp
     Source/ui/ServiceBoard.cpp
     Source/ui/Widgets.cpp)
 

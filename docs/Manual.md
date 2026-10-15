@@ -220,7 +220,7 @@ The jacks at the bottom re-route envelopes, oscillators and the sequencer with c
 | **Lamp buttons** (STEP ON) | Step on/off. **Green** = on, **dark** = off, **amber** = playing. Steps beyond the set length are dimmed |
 | **TEMPO** | Own tempo 20–300 BPM (only with **INT**) |
 | **RUN / STOP** | Sequencer on/off |
-| **INT / HOST** | **INT**: own tempo, starts right away with RUN. **HOST**: runs only while the DAW plays and is locked to the song position |
+| **INT / HOST** | **INT**: own tempo, starts right away with RUN. **HOST**: runs only while the DAW plays and is locked to the song position (so with HOST, RUN alone does nothing until you press Play in the DAW). The Standalone app starts on INT; HOST there waits for a DAW clock that never comes |
 | **PITCH TO** 1+2 / OFF / VCO 2 | Where the step pitch goes: both oscillators, nowhere, or VCO 2 only |
 | **TRIG** | Play the current step again |
 | **ADV** | Advance one step and play it |
@@ -228,6 +228,11 @@ The jacks at the bottom re-route envelopes, oscillators and the sequencer with c
 | **RATE** (title bar, left) | Note value per step: 1/4, 1/8, 1/8T, 1/16, 1/16T, 1/32 (T = triplet) |
 | **LENGTH** (title bar, left) | Number of steps, 1–16. Odd lengths (5, 7, 11 …) run against the bar |
 | **1-8 / 9-16** (tabs in the title bar) | Which eight steps are shown. A dot lights on the page that is playing |
+| **PATTERN 1–8** (title bar) | Eight patterns per preset; the lit one plays. Amber numbers have steps in them, dim ones are empty. Right-click a key to copy that pattern to another or clear it |
+| **◀◀ ▶▶** (title bar) | Shift the whole pattern one step left / right (rotates within LENGTH) |
+| **COPY / PASTE** | Copy the eight steps shown and paste them onto the page shown – into another page or another pattern |
+| **RAND** | Randomise pitch, velocity, ratchet, chance, steps on/off – or everything – for the steps within LENGTH |
+| **UNDO** | Takes back the last tool (shift, paste, RAND, clear, copy into this pattern). Pressed again, it redoes it |
 
 **RATE and LENGTH:** click an arrow to step, click the value for a list, or use the mouse wheel;
 double-click the value resets it.
@@ -247,6 +252,14 @@ the time between the last two clock pulses. TRIG, ADV and MIDI notes play the ra
 **Chance:** 0–100 % per step. With each pass of the sequencer the step plays with this probability –
 at 100 % always (the default), at 0 % never. Only the clock (INT, HOST or a cable in ADV/CLK) rolls the
 dice; TRIG, ADV and MIDI notes always play.
+
+**Patterns:** a pattern holds the steps (pitch, velocity, on/off, ratchet, chance) and LENGTH; RATE,
+swing, scale and the sound belong to the preset. A click on a pattern key switches at once – the
+sequencer keeps its position. The pattern that plays is always the one on the knobs, so automation and
+the knobs work as before. All eight patterns are saved with the project and in presets.
+
+**RAND** uses whole semitones within an octave either way (SCALE and ROOT still apply) and keeps step 1
+on, so the pattern keeps its downbeat.
 
 **Why two equal steps can sound different:** the oscillators run freely, like analog ones – a hit
 starts wherever the wave happens to be. With low pitches (kicks, toms) that changes the click and punch
@@ -385,8 +398,9 @@ preset.
 | **SAVE** | Save the current sound as your own preset. If the name exists already, PS-8 asks before overwriting |
 | **MENU** or a click on the name | All presets at a glance, plus **Save as…**, **Rename…**, **Delete** and **Open preset folder** |
 
-**What a preset contains:** all knobs and switches, the whole step pattern (pitch, velocity, on/off,
-ratchet, chance, length, rate, scale, root, glide, swing), the LFO and the patch cables. **Not** included are **RUN/STOP** and
+**What a preset contains:** all knobs and switches, all eight step patterns (pitch, velocity, on/off,
+ratchet, chance, length) and which one plays, rate, scale, root, glide, swing, the LFO and the patch
+cables. **Not** included are **RUN/STOP** and
 **INT/HOST** – so loading a preset never starts or stops the sequencer.
 
 **Factory presets** are built in and read-only. To keep a changed version, press **SAVE** and give it a
@@ -581,8 +595,10 @@ restart the DAW.
 steps green? Is VELOCITY above 0? Was SCRAM pressed (then switch RUN back on)? Is a cable in RUN,
 ADV/CLK or VCA CV holding things up (double-click the jack to pull it)?
 
-**The sequencer isn't in time** – set the switch to **HOST**. The Standalone has no DAW clock, so PS-8
-always runs on its own tempo there.
+**The sequencer doesn't start** – with **HOST** it only runs while the DAW plays: press Play in the DAW,
+or switch to **INT**. In the Standalone app use **INT** (the default there).
+
+**The sequencer isn't in time** – set the switch to **HOST**.
 
 **It whistles** – turn RESONANCE down. Fully right, the filter self-oscillates on purpose.
 

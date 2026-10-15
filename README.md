@@ -15,6 +15,7 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 - MIDI: play single steps, advance, retrigger and reset by note
 - Patchbay with 26 jacks: re-route envelopes, oscillators, sequencer clock, run and reset by cable;
   feedback and audio-rate patches allowed, DAW side-chain into EXT IN
+- 8 patterns per preset, step tools: shift, copy/paste a page, randomise, undo
 - Presets: 14 factory presets, save your own (incl. cables) as plain files in your user folder;
   the window size is remembered
 - SCRAM button: stops the sequencer and silences the voice

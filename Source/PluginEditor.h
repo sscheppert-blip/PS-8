@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "ui/Patchbay.h"
 #include "ui/ProgramDisplay.h"
+#include "ui/SequencerTools.h"
 #include "ui/ServiceBoard.h"
 #include "ui/Widgets.h"
 
@@ -61,6 +62,7 @@ private:
     ps8::ui::SelectorKeys* stepRowKeys = nullptr;
     ps8::ui::Patchbay* patchbay = nullptr;
     ps8::ui::ProgramDisplay* programDisplay = nullptr;
+    ps8::ui::SequencerTools* sequencerTools = nullptr;
 
     struct StepColumn
     {
