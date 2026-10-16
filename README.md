@@ -42,9 +42,10 @@ how to unblock any downloaded plugin – and PS-8 in one go
 ## Credits
 
 Idea, direction, ears and the "nah, take the red caps off" calls: [sscheppert-blip](https://github.com/sscheppert-blip).
-Every line of code, DSP and documentation was typed by [Claude Code](https://claude.com/claude-code)
-running **Claude Opus 5.5** on **medium effort**. So if you like it, send a good part of the flowers to
-the robot – the human only pointed and said "make it go boom". 🤖💐
+Every line of code, DSP and documentation was typed by AI: [Claude Code](https://claude.com/claude-code)
+running **Claude Opus 5.5** on **medium effort**, with a helping hand from [OpenAI Codex](https://openai.com/codex).
+So if you like it, send a good part of the flowers to the robots – the human only pointed and said
+"make it go boom". 🤖💐
 
 ## License
 
