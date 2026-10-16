@@ -1402,25 +1402,44 @@ static void testTextConversions()
 
 //==============================================================================
 // Renders four bars of the init pattern (internal clock, 120 BPM) to a 16-bit WAV file.
-static int renderDemo (const char* path)
+// --render <wav> [factory preset] [hit] [paramId=value …]: by default the init pattern; "hit" plays
+// step 1 once (1 s) instead of the running sequence. Values are plain parameter values.
+static int renderDemo (const char* path, const juce::StringArray& options)
 {
     namespace id = ps8::params::id;
     constexpr int sampleRate = 48000;
 
     PS8AudioProcessor processor;
     processor.setPlayConfigDetails (0, 2, sampleRate, 512);
-    setParam (processor, id::hostClock, 0.0f);
-    setParam (processor, id::run, 1.0f);
     processor.prepareToPlay (sampleRate, 512);
+
+    bool singleHit = false;
+
+    for (const auto& option : options)
+    {
+        if (option == "hit")
+            singleHit = true;
+        else if (option.contains ("="))
+            setParam (processor, option.upToFirstOccurrenceOf ("=", false, false),
+                      option.fromFirstOccurrenceOf ("=", false, false).getFloatValue());
+        else if (! processor.getPresets().load ({ option, true, {} }))
+            std::printf ("no factory preset called \"%s\"\n", option.toRawUTF8());
+    }
+
+    setParam (processor, id::hostClock, 0.0f);
+    setParam (processor, id::run, singleHit ? 0.0f : 1.0f);
 
     std::vector<float> out;
     juce::AudioBuffer<float> buffer (2, 512);
+    const auto seconds = singleHit ? 1 : 8;
 
-    for (int i = 0; i < sampleRate * 8 / 512; ++i)
+    for (int i = 0; i < sampleRate * seconds / 512; ++i)
     {
-        juce::MidiBuffer none;
+        juce::MidiBuffer midi;
+        if (singleHit && i == 0)
+            midi.addEvent (juce::MidiMessage::noteOn (1, PS8AudioProcessor::firstStepNote, (juce::uint8) 127), 0);
         buffer.clear();
-        processor.processBlock (buffer, none);
+        processor.processBlock (buffer, midi);
         out.insert (out.end(), buffer.getReadPointer (0), buffer.getReadPointer (0) + 512);
     }
 
@@ -1517,8 +1536,13 @@ int main (int argc, char** argv)
     ps8::setAppDataFolderOverride (scratch);
     struct CleanUp { juce::File folder; ~CleanUp() { folder.deleteRecursively(); } } cleanUp { scratch };
 
-    if (argc == 3 && std::string_view (argv[1]) == "--render")
-        return renderDemo (argv[2]);
+    if (argc >= 3 && std::string_view (argv[1]) == "--render")
+    {
+        juce::StringArray options;
+        for (int i = 3; i < argc; ++i)
+            options.add (juce::String::fromUTF8 (argv[i]));
+        return renderDemo (argv[2], options);
+    }
 
     if (argc == 3 && std::string_view (argv[1]) == "--hatch-frames")
         return hatchFrames (argv[2]);

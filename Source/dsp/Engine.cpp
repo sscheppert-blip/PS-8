@@ -9,7 +9,19 @@ namespace ps8::dsp
     namespace
     {
         constexpr float pi = 3.14159265358979f;
-        constexpr float outputGain = 2.5f;   // init sound peaks around -6 dBFS
+        constexpr float outputGain = 2.5f;
+
+        // The VCA shuts off below a small control voltage (knee), like the original's: the level holds
+        // longer and then ends cleanly instead of fading out exponentially. Fitted to recordings of the
+        // original (knee 5–10 % of full scale). The VCA envelope runs slower by vcaStretch, so a hit
+        // still falls 60 dB within the time set on the VCA DECAY knob.
+        constexpr float vcaKnee = 0.07f;
+        const float vcaStretch = 6.907755f / -std::log (vcaKnee + 0.001f * (1.0f - vcaKnee));
+
+        float vcaGain (float controlVoltage) noexcept
+        {
+            return std::max (0.0f, controlVoltage - vcaKnee) * (1.0f / (1.0f - vcaKnee));
+        }   // init sound peaks around -6 dBFS
 
         // -60 dB after the given time
         float decayCoef (float seconds, double sampleRate) noexcept
@@ -292,7 +304,8 @@ namespace ps8::dsp
     float Engine::envelopeCoef (float decayKnob, int envelope) const noexcept
     {
         const auto tolerance = 1.0f + settings.analog * tolerances.decay[envelope] + hitDecay;
-        return decayCoef (decaySeconds (decayKnob) * decayScale * tolerance, sampleRate);
+        const auto stretch = envelope == 2 ? vcaStretch : 1.0f;
+        return decayCoef (decaySeconds (decayKnob) * decayScale * tolerance * stretch, sampleRate);
     }
 
     void Engine::updateDecays() noexcept
@@ -494,7 +507,7 @@ namespace ps8::dsp
             if (muting)
                 mute *= vca.killCoef;
 
-            const auto amp = isPatched (vcaCvIn) ? unit (cv (vcaCvIn)) * mute : envelope;
+            const auto amp = isPatched (vcaCvIn) ? vcaGain (unit (cv (vcaCvIn))) * mute : vcaGain (envelope);
             const auto tremolo = 1.0f - b.lfoVolume * (0.5f - 0.5f * mod);
             const auto vcaSignal = driven * amp * tremolo;
             out[i] = outputGain * vcaSignal * vol.next (p.volume * p.volume, c);

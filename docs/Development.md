@@ -24,7 +24,9 @@ cmake --build build
 
 The plugins are copied into the user plugin folders after building, and on macOS the Standalone app
 into `~/Applications` (`-DPS8_COPY_PLUGIN=OFF` to skip).
-The test runner also writes a demo pattern (`--render demo.wav`), a panel screenshot
+The test runner also writes a demo pattern (`--render demo.wav`; add a factory preset name, `hit` for a
+single hit of step 1 instead of the sequence, and `paramId=value` overrides, e.g.
+`--render kick.wav "Deep Kick" hit cutoff=0.3`), a panel screenshot
 (`--snapshot panel.png`, add `patched` for a few demo cables and/or `service` for the open service hatch),
 frames of the hatch animation (`--hatch-frames <folder>`), the app icon (`--icon design/icon.png`,
 1024 px, used for the Standalone app) and measures the CPU load (`--bench`).

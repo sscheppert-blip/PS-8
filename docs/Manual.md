@@ -194,7 +194,9 @@ its own EG AMOUNT.
 | **VCA ATTACK** FAST / SLOW | Hard attack or soft onset (about 12 ms) |
 | **DRIVE** | Saturation/distortion after the filter |
 
-All decays range from about 3 ms to 10 s.
+All decays range from about 3 ms to 10 s. Like the original's VCA, PS-8's closes completely below a small
+control voltage: a hit keeps its body for a while and then ends cleanly instead of fading out slowly. It
+is silent after the time set on VCA DECAY.
 
 ### OUTPUT
 
@@ -418,7 +420,7 @@ name. They are:
 
 | Category | Presets |
 |---|---|
-| **KICK** | Deep Kick, Punch Kick, Long Boom, Distorted Kick, Worn Kick (ANALOG up, free-running VCO) |
+| **KICK** | Deep Kick, Punch Kick, Long Boom (soft, no click), Distorted Kick, Worn Kick (ANALOG up, free-running VCO), Tight Kick, Slow Sweep Kick – matched to recordings of the original instrument |
 | **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
 | **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (ratchets), Rim Shot, Ghost Notes (velocity) |
 | **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |

@@ -51,17 +51,24 @@ namespace ps8
         }
 
         //==============================================================================
+        // The kick, matched to recordings of the original: VCO 1 at about 45 Hz sweeps down from 3–4
+        // octaves above within ~50 ms; the filter sits almost closed (~80 Hz), so the body is nearly a
+        // sine, and a short burst of the filter envelope lets the square's edge through as the click;
+        // the VCA holds the body for a while.
         Values kick()
         {
-            return { { id::vco1Freq, clock (9) }, { id::vco1Eg, bipolar (2) }, { id::vco1Level, 1.0f },
+            return { { id::vco1Freq, 0.25f }, { id::vco1Eg, 0.88f }, { id::vco1Level, 1.0f }, { id::vco1Square, 1.0f },
                      { id::vco2Level, 0.0f }, { id::noiseLevel, 0.0f },
-                     { id::cutoff, clock (1) }, { id::resonance, clock (9) }, { id::vcfEg, 0.0f },
-                     { id::pitchDecay, clock (9) }, { id::vcaDecay, clock (12) } };
+                     { id::cutoff, 0.20f }, { id::resonance, 0.21f }, { id::vcfEg, 0.8f }, { id::vcfDecay, 0.1f },
+                     { id::pitchDecay, 0.51f }, { id::vcaDecay, 0.60f } };
         }
 
         Values tom()
         {
-            return kick() + Values { { id::vco1Freq, clock (11) }, { id::vco1Eg, bipolar (1) }, { id::vcaDecay, clock (11.5f) } };
+            return { { id::vco1Freq, clock (11) }, { id::vco1Eg, bipolar (1) }, { id::vco1Level, 1.0f },
+                     { id::vco2Level, 0.0f }, { id::noiseLevel, 0.0f },
+                     { id::cutoff, clock (1) }, { id::resonance, clock (9) }, { id::vcfEg, 0.0f },
+                     { id::pitchDecay, clock (9) }, { id::vcaDecay, clock (11.5f) } };
         }
 
         Values snare()
@@ -117,21 +124,25 @@ namespace ps8
             // TRIG -> VCO RST: every hit starts the oscillators at the same point, so all kicks sound alike
             category = "KICK";
             add ("Deep Kick", kick(), "trig>vcoReset");
-            add ("Punch Kick", kick() + Values { { id::vco1Freq, clock (9.5f) }, { id::vco1Eg, bipolar (2.5f) },
-                                                  { id::pitchDecay, clock (9.8f) }, { id::vcaDecay, clock (11) },
-                                                  { id::drive, 0.35f }, { id::cutoff, clock (2) }, { id::noiseLevel, 0.05f } },
+            add ("Punch Kick", kick() + Values { { id::vco1Eg, 0.70f }, { id::pitchDecay, 0.476f }, { id::vcaDecay, 0.536f },
+                                                  { id::cutoff, 0.24f }, { id::drive, 0.35f } },
                  "trig>vcoReset");
-            add ("Long Boom", kick() + Values { { id::vco1Freq, clock (9) }, { id::vco1Eg, bipolar (1.5f) },
-                                                 { id::pitchDecay, clock (10.5f) }, { id::vcaDecay, clock (2) },
-                                                 { id::cutoff, clock (12) }, { id::resonance, clock (8.5f) } },
+            // soft: triangle and a slow filter envelope, no click
+            add ("Long Boom", kick() + Values { { id::vco1Square, 0.0f }, { id::vco1Freq, 0.235f }, { id::pitchDecay, 0.57f },
+                                                 { id::vcaDecay, 0.69f }, { id::cutoff, 0.24f }, { id::vcfEg, 0.27f },
+                                                 { id::vcfDecay, 0.365f } },
                  "trig>vcoReset");
-            add ("Distorted Kick", kick() + Values { { id::vco1Freq, clock (9.7f) }, { id::vco1Eg, bipolar (3.5f) },
-                                                      { id::pitchDecay, clock (9.5f) }, { id::vcaDecay, clock (11.5f) },
-                                                      { id::drive, 0.9f }, { id::resonance, clock (11) },
-                                                      { id::cutoff, clock (1.5f) }, { id::volume, 0.55f } },
+            add ("Distorted Kick", kick() + Values { { id::vco1Freq, 0.27f }, { id::drive, 0.9f }, { id::resonance, 0.35f },
+                                                      { id::cutoff, 0.30f }, { id::volume, 0.55f } },
                  "trig>vcoReset");
             // the oscillator runs free and ANALOG is up: every kick a little different, like a worn machine
-            add ("Worn Kick", kick() + Values { { id::analog, 0.85f }, { id::vcaDecay, clock (12.5f) } });
+            add ("Worn Kick", kick() + Values { { id::analog, 0.85f } });
+            add ("Tight Kick", kick() + Values { { id::vco1Freq, 0.305f }, { id::vco1Eg, 0.76f }, { id::pitchDecay, 0.484f },
+                                                  { id::cutoff, 0.24f } },
+                 "trig>vcoReset");
+            add ("Slow Sweep Kick", kick() + Values { { id::vco1Freq, 0.223f }, { id::vco1Eg, 0.745f }, { id::pitchDecay, 0.652f },
+                                                       { id::vcaDecay, 0.617f } },
+                 "trig>vcoReset");
 
             category = "TOM";
             {
@@ -188,7 +199,7 @@ namespace ps8
 
             category = "HAT / METAL";
             add ("Closed Hat", hats (clock (8)));
-            add ("Open Hat", hats (clock (11)));
+            add ("Open Hat", hats (clock (11)) + Values { { id::volume, 0.6f } });
             add ("Ride Metal", hats (clock (1)) + Values { { id::fmAmount, 0.8f }, { id::vco1Freq, clock (3.2f) },
                                                            { id::vco2Freq, clock (3.7f) }, { id::noiseLevel, 0.2f },
                                                            { id::volume, 0.55f } });

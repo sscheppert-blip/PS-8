@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(PS8 VERSION 0.3.0 LANGUAGES C CXX)
+project(PS8 VERSION 0.4.0 LANGUAGES C CXX)
 
 option(PS8_BUILD_TESTS "Build the offline tests" ON)
 option(PS8_COPY_PLUGIN "Copy the built plugins into the user's plugin folders" ON)

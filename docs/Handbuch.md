@@ -199,7 +199,9 @@ Oszillatoren, jeder mit seinem eigenen EG AMOUNT.
 | **VCA ATTACK** FAST / SLOW | Harter Anschlag oder weicher Einsatz (ca. 12 ms) |
 | **DRIVE** | Sättigung/Verzerrung nach dem Filter |
 
-Alle Decays reichen von ca. 3 ms bis 10 s.
+Alle Decays reichen von ca. 3 ms bis 10 s. Wie beim Original schließt der VCA von PS-8 unterhalb einer
+kleinen Steuerspannung ganz: Ein Schlag behält eine Weile seinen Körper und hört dann sauber auf, statt
+langsam auszublenden. Nach der am VCA-DECAY eingestellten Zeit ist er still.
 
 ### OUTPUT
 
@@ -427,7 +429,7 @@ drück **SAVE** und gib ihr einen Namen. Mit dabei:
 
 | Kategorie | Presets |
 |---|---|
-| **KICK** | Deep Kick, Punch Kick, Long Boom, Distorted Kick, Worn Kick (ANALOG hoch, freilaufender VCO) |
+| **KICK** | Deep Kick, Punch Kick, Long Boom (weich, ohne Klick), Distorted Kick, Worn Kick (ANALOG hoch, freilaufender VCO), Tight Kick, Slow Sweep Kick – nach Aufnahmen des Originals abgestimmt |
 | **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
 | **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (Ratchets), Rim Shot, Ghost Notes (Velocity) |
 | **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |
