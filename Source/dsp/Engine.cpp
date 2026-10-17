@@ -203,7 +203,8 @@ namespace ps8::dsp
         vcfEnv.fire();
 
         // the attack starts from the current level, so retriggers do not click
-        const auto attackSeconds = settings.vcaSlowAttack ? 0.012f : 0.0003f;
+        // FAST is almost a step, like the original's VCA: that hard onset is the click of its kicks
+        const auto attackSeconds = settings.vcaSlowAttack ? 0.012f : 0.00003f;
         vca.attackRemaining = std::max (1, (int) (attackSeconds * (float) sampleRate));
         vca.peak = velocity;
         vca.attackStep = (vca.peak - vca.value) / (float) vca.attackRemaining;

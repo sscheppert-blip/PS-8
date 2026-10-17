@@ -51,15 +51,14 @@ namespace ps8
         }
 
         //==============================================================================
-        // The kick, matched to recordings of the original: VCO 1 at about 45 Hz sweeps down from 3–4
-        // octaves above within ~50 ms; the filter sits almost closed (~80 Hz), so the body is nearly a
-        // sine, and a short burst of the filter envelope lets the square's edge through as the click;
-        // the VCA holds the body for a while.
+        // The kick, matched to recordings of the original: VCO 1 (triangle) at about 45 Hz sweeps down
+        // from 3–4 octaves above within ~50 ms; the filter sits almost closed (~100 Hz), so the body is
+        // nearly a sine; the click is the VCA's hard onset; the VCA holds the body for a while.
         Values kick()
         {
-            return { { id::vco1Freq, 0.25f }, { id::vco1Eg, 0.88f }, { id::vco1Level, 1.0f }, { id::vco1Square, 1.0f },
+            return { { id::vco1Freq, 0.25f }, { id::vco1Eg, 0.88f }, { id::vco1Level, 1.0f }, { id::vco1Square, 0.0f },
                      { id::vco2Level, 0.0f }, { id::noiseLevel, 0.0f },
-                     { id::cutoff, 0.20f }, { id::resonance, 0.21f }, { id::vcfEg, 0.8f }, { id::vcfDecay, 0.1f },
+                     { id::cutoff, 0.26f }, { id::resonance, 0.21f }, { id::vcfEg, 0.27f }, { id::vcfDecay, 0.365f },
                      { id::pitchDecay, 0.51f }, { id::vcaDecay, 0.60f } };
         }
 
@@ -85,6 +84,16 @@ namespace ps8
                      { id::fmAmount, clock (2) }, { id::noiseLevel, clock (12) },
                      { id::highPass, 1.0f }, { id::cutoff, clock (2) }, { id::vcfEg, 0.0f },
                      { id::vcaDecay, vcaDecay } };
+        }
+
+        // closed hat matched to recordings of the original: noise through the resonant high-pass, a little
+        // of VCO 1 underneath
+        Values closedHat()
+        {
+            return { { id::vco1Freq, 0.38f }, { id::vco1Eg, 0.0f }, { id::vco1Level, 0.35f }, { id::vco2Level, 0.0f },
+                     { id::vco2Eg, 0.0f }, { id::noiseLevel, 0.92f }, { id::highPass, 1.0f },
+                     { id::cutoff, 0.70f }, { id::resonance, 0.46f }, { id::vcfEg, 0.25f },
+                     { id::vcfDecay, 0.28f }, { id::vcaDecay, 0.36f } };
         }
 
         Values acid()
@@ -127,10 +136,9 @@ namespace ps8
             add ("Punch Kick", kick() + Values { { id::vco1Eg, 0.70f }, { id::pitchDecay, 0.476f }, { id::vcaDecay, 0.536f },
                                                   { id::cutoff, 0.24f }, { id::drive, 0.35f } },
                  "trig>vcoReset");
-            // soft: triangle and a slow filter envelope, no click
-            add ("Long Boom", kick() + Values { { id::vco1Square, 0.0f }, { id::vco1Freq, 0.235f }, { id::pitchDecay, 0.57f },
-                                                 { id::vcaDecay, 0.69f }, { id::cutoff, 0.24f }, { id::vcfEg, 0.27f },
-                                                 { id::vcfDecay, 0.365f } },
+            // soft: a slower onset (VCA ATTACK SLOW) takes the click away
+            add ("Long Boom", kick() + Values { { id::vco1Freq, 0.235f }, { id::pitchDecay, 0.57f }, { id::vcaDecay, 0.69f },
+                                                 { id::cutoff, 0.24f }, { id::vcaSlow, 1.0f } },
                  "trig>vcoReset");
             add ("Distorted Kick", kick() + Values { { id::vco1Freq, 0.27f }, { id::drive, 0.9f }, { id::resonance, 0.35f },
                                                       { id::cutoff, 0.30f }, { id::volume, 0.55f } },
@@ -141,7 +149,8 @@ namespace ps8
                                                   { id::cutoff, 0.24f } },
                  "trig>vcoReset");
             add ("Slow Sweep Kick", kick() + Values { { id::vco1Freq, 0.223f }, { id::vco1Eg, 0.745f }, { id::pitchDecay, 0.652f },
-                                                       { id::vcaDecay, 0.617f } },
+                                                       { id::vcaDecay, 0.617f }, { id::cutoff, 0.278f }, { id::vcfEg, 0.16f },
+                                                       { id::vcfDecay, 0.443f } },
                  "trig>vcoReset");
 
             category = "TOM";
@@ -198,24 +207,39 @@ namespace ps8
             }
 
             category = "HAT / METAL";
-            add ("Closed Hat", hats (clock (8)));
-            add ("Open Hat", hats (clock (11)) + Values { { id::volume, 0.6f } });
+            add ("Closed Hat", closedHat());
+            add ("Open Hat", { { id::vco1Level, 0.0f }, { id::vco2Level, 0.0f }, { id::vco1Eg, 0.0f }, { id::vco2Eg, 0.0f },
+                               { id::noiseLevel, 0.93f }, { id::highPass, 1.0f }, { id::cutoff, 0.72f },
+                               { id::resonance, 0.5f }, { id::vcfEg, 0.2f }, { id::vcfDecay, 0.3f },
+                               { id::vcaDecay, 0.6f }, { id::volume, 0.6f } });
             add ("Ride Metal", hats (clock (1)) + Values { { id::fmAmount, 0.8f }, { id::vco1Freq, clock (3.2f) },
                                                            { id::vco2Freq, clock (3.7f) }, { id::noiseLevel, 0.2f },
                                                            { id::volume, 0.55f } });
             {
-                auto v = hats (clock (8.5f)) + Values { { id::analog, 0.6f }, { id::swing, 0.62f } };
+                auto v = closedHat() + Values { { id::analog, 0.6f }, { id::swing, 0.62f } };
                 velocities (v, { 1, 0.45f, 0.75f, 0.45f, 1, 0.45f, 0.75f, 0.5f });
                 chances (v, { 1, 0.8f, 1, 0.6f, 1, 0.8f, 1, 0.7f });
                 add ("Swing Hats", v);
             }
-            add ("Bit Hats", hats (clock (8.5f)) + Values { { id::noiseVcf, 0.7f }, { id::resonance, clock (1) },
-                                                            { id::volume, 0.55f } }, "vco2>vcfMod");
+            add ("Bit Hats", closedHat() + Values { { id::vco2Square, 1.0f }, { id::vco2Freq, clock (3) }, { id::noiseVcf, 0.7f } },
+                 "vco2>vcfMod");
             add ("Metal Gong", { { id::vco1Freq, clock (12.2f) }, { id::vco2Freq, clock (1.1f) }, { id::fmAmount, 0.9f },
                                  { id::vco1Eg, 0.0f }, { id::vco2Eg, 0.0f }, { id::vco1Level, 0.8f }, { id::vco2Level, 0.6f },
                                  { id::noiseLevel, 0.0f }, { id::cutoff, clock (2) }, { id::resonance, clock (11) },
                                  { id::vcfEg, bipolar (1) }, { id::vcfDecay, clock (1) }, { id::vcaDecay, clock (2.2f) },
                                  { id::rate, quarter }, { id::length, 4.0f } });
+
+            // metallic hits matched to recordings of the original: two squares, FM 1>2 and noise
+            add ("Metal Hit", { { id::vco1Square, 1.0f }, { id::vco2Square, 1.0f }, { id::vco1Eg, 0.0f }, { id::vco2Eg, 0.0f },
+                                { id::vco1Freq, 0.546f }, { id::vco2Freq, 0.854f }, { id::vco1Level, 0.41f },
+                                { id::vco2Level, 0.36f }, { id::fmAmount, 0.38f }, { id::noiseLevel, 0.34f },
+                                { id::cutoff, 0.79f }, { id::resonance, 0.53f }, { id::vcfEg, 0.75f },
+                                { id::vcfDecay, 0.54f }, { id::vcaDecay, 0.35f } });
+            add ("Clank", { { id::vco1Square, 1.0f }, { id::vco2Square, 1.0f }, { id::vco1Eg, 0.0f }, { id::vco2Eg, 0.0f },
+                            { id::vco1Freq, 0.558f }, { id::vco2Freq, 0.849f }, { id::vco1Level, 0.81f },
+                            { id::vco2Level, 0.22f }, { id::fmAmount, 0.39f }, { id::noiseLevel, 0.78f },
+                            { id::cutoff, 0.75f }, { id::resonance, 0.0f }, { id::vcfEg, -0.25f },
+                            { id::vcfDecay, 0.3f }, { id::vcaDecay, 0.48f } });
 
             category = "PERCUSSION";
             add ("Cowbell", { { id::vco1Square, 1.0f }, { id::vco2Square, 1.0f }, { id::vco1Freq, clock (1.8f) },
@@ -243,6 +267,19 @@ namespace ps8
                 add ("Swing Perc", v, "trig>vcoReset");
             }
 
+            {
+                // FM percussion matched to a recording of the original: VCO 2 modulated by VCO 1, its own
+                // pitch falling a little, the filter low and resonant
+                auto v = Values { { id::vco1Square, 1.0f }, { id::vco2Square, 1.0f }, { id::vco1Freq, 0.618f },
+                                  { id::vco1Eg, 0.0f }, { id::vco1Level, 0.14f }, { id::vco2Freq, 0.618f },
+                                  { id::vco2Eg, -0.38f }, { id::vco2Level, 0.64f }, { id::fmAmount, 0.5f },
+                                  { id::noiseLevel, 0.0f }, { id::pitchDecay, 0.34f }, { id::vcaDecay, 0.43f },
+                                  { id::cutoff, 0.24f }, { id::resonance, 0.44f }, { id::vcfEg, 0.22f },
+                                  { id::vcfDecay, 0.52f }, { id::pitchTarget, 1.0f } };
+                velocities (v, { 1, 0.6f, 0.8f, 0.6f, 1, 0.6f, 0.8f, 0.7f });
+                add ("FM Perc", v);
+            }
+
             category = "BASS";
             add ("Acid Line", acid());
             add ("Sub Bass", subBass());
@@ -265,6 +302,16 @@ namespace ps8
                 add ("FM Bass", v);
             }
             add ("Drift Bass", subBass() + Values { { id::analog, 1.0f }, { id::glide, clock (9.5f) } });
+            {
+                // matched to a sub bass of the original: two triangles, strong FM, the filter low
+                auto v = Values { { id::vco1Freq, 0.351f }, { id::vco1Eg, -0.21f }, { id::vco1Level, 0.9f },
+                                  { id::vco2Freq, 0.658f }, { id::vco2Eg, -0.3f }, { id::vco2Level, 0.69f },
+                                  { id::fmAmount, 0.76f }, { id::noiseLevel, 0.0f }, { id::pitchDecay, 0.23f },
+                                  { id::vcaDecay, 0.58f }, { id::cutoff, 0.31f }, { id::resonance, 0.22f },
+                                  { id::vcfEg, -0.12f }, { id::vcfDecay, 0.73f }, { id::scale, scaleMinor } };
+                pitches (v, { 0, 0, 12, 0, -2, 0, 7, -5 });
+                add ("FM Sub", v);
+            }
 
             category = "LEAD / FX";
             add ("Laser Zap", { { id::vco1Freq, clock (1) }, { id::vco1Eg, 1.0f },

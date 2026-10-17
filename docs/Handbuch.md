@@ -196,7 +196,7 @@ Oszillatoren, jeder mit seinem eigenen EG AMOUNT.
 | **PITCH** | Abklingzeit der Pitch-Hüllkurve |
 | **FILTER** | Abklingzeit der Filter-Hüllkurve |
 | **VCA** | Abklingzeit der Lautstärke – also die Länge des Klangs |
-| **VCA ATTACK** FAST / SLOW | Harter Anschlag oder weicher Einsatz (ca. 12 ms) |
+| **VCA ATTACK** FAST / SLOW | **FAST** öffnet den VCA fast schlagartig, wie beim Original – dieser harte Einsatz ist der Klick einer Kick. **SLOW** blendet in ca. 12 ms ein (ohne Klick) |
 | **DRIVE** | Sättigung/Verzerrung nach dem Filter |
 
 Alle Decays reichen von ca. 3 ms bis 10 s. Wie beim Original schließt der VCA von PS-8 unterhalb einer
@@ -429,12 +429,12 @@ drück **SAVE** und gib ihr einen Namen. Mit dabei:
 
 | Kategorie | Presets |
 |---|---|
-| **KICK** | Deep Kick, Punch Kick, Long Boom (weich, ohne Klick), Distorted Kick, Worn Kick (ANALOG hoch, freilaufender VCO), Tight Kick, Slow Sweep Kick – nach Aufnahmen des Originals abgestimmt |
+| **KICK** | Deep Kick, Punch Kick, Long Boom (weich, VCA ATTACK SLOW), Distorted Kick, Worn Kick (ANALOG hoch, freilaufender VCO), Tight Kick, Slow Sweep Kick – nach Aufnahmen des Originals abgestimmt |
 | **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
 | **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (Ratchets), Rim Shot, Ghost Notes (Velocity) |
-| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |
-| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc |
-| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG voll) |
+| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong, Metal Hit, Clank – Hats und Metall-Schläge nach Aufnahmen des Originals |
+| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc, FM Perc (nach dem Original) |
+| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG voll), FM Sub (nach dem Original) |
 | **LEAD / FX** | Laser Zap, Bleeps, Ping Pong, Alarm, Robot Talk, Sweep Up, Static Rain |
 | **GROOVE** | Moving Groove, Random Pitches, Ratchet Rolls, Five Step (Polymetrik) |
 | **PATCHBAY** | Rolls (INT), Growl, Drone, Feedback, Melodic Filter, Filter Ping, Accent Filter, VCO Clock, Chaos Engine |

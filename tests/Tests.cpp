@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <iostream>
 #include <cstdlib>
 #include <string_view>
 #include <vector>
@@ -1401,10 +1402,14 @@ static void testTextConversions()
 }
 
 //==============================================================================
-// Renders four bars of the init pattern (internal clock, 120 BPM) to a 16-bit WAV file.
-// --render <wav> [factory preset] [hit] [paramId=value …]: by default the init pattern; "hit" plays
-// step 1 once (1 s) instead of the running sequence. Values are plain parameter values.
-static int renderDemo (const char* path, const juce::StringArray& options)
+// Renders PS-8 to a 16-bit mono WAV file. Options:
+//   <factory preset name>   load it first (e.g. "Deep Kick")
+//   hit                      play step 1 once instead of running the sequencer (default 1 s)
+//   seconds=<n>              length (default 1 s for a hit, 8 s for the sequence)
+//   cables=<a>b,c>d>         patch cables, as in the saved state ("trig>vcoReset,vco2>vcfMod"); empty = none
+//   <paramId>=<value>        plain parameter value (e.g. cutoff=0.3)
+// Without options: four bars of the init pattern on the internal clock (120 BPM).
+static bool renderToFile (const juce::String& path, const juce::StringArray& options)
 {
     namespace id = ps8::params::id;
     constexpr int sampleRate = 48000;
@@ -1414,14 +1419,21 @@ static int renderDemo (const char* path, const juce::StringArray& options)
     processor.prepareToPlay (sampleRate, 512);
 
     bool singleHit = false;
+    double seconds = -1.0;
 
     for (const auto& option : options)
     {
+        const auto key = option.upToFirstOccurrenceOf ("=", false, false);
+        const auto value = option.fromFirstOccurrenceOf ("=", false, false);
+
         if (option == "hit")
             singleHit = true;
+        else if (key == "seconds")
+            seconds = value.getDoubleValue();
+        else if (key == "cables")
+            processor.setPatch (PS8AudioProcessor::patchFromString (value.replaceCharacter (',', ' ')));
         else if (option.contains ("="))
-            setParam (processor, option.upToFirstOccurrenceOf ("=", false, false),
-                      option.fromFirstOccurrenceOf ("=", false, false).getFloatValue());
+            setParam (processor, key, value.getFloatValue());
         else if (! processor.getPresets().load ({ option, true, {} }))
             std::printf ("no factory preset called \"%s\"\n", option.toRawUTF8());
     }
@@ -1429,11 +1441,24 @@ static int renderDemo (const char* path, const juce::StringArray& options)
     setParam (processor, id::hostClock, 0.0f);
     setParam (processor, id::run, singleHit ? 0.0f : 1.0f);
 
+    if (seconds <= 0.0)
+        seconds = singleHit ? 1.0 : 8.0;
+
     std::vector<float> out;
     juce::AudioBuffer<float> buffer (2, 512);
-    const auto seconds = singleHit ? 1 : 8;
 
-    for (int i = 0; i < sampleRate * seconds / 512; ++i)
+    // a hit plays after 0.2 s of silence, so the engine's 5 ms parameter smoothing has settled
+    if (singleHit)
+    {
+        for (int i = 0; i < sampleRate / 5 / 512; ++i)
+        {
+            juce::MidiBuffer none;
+            buffer.clear();
+            processor.processBlock (buffer, none);
+        }
+    }
+
+    for (int i = 0; i < juce::roundToInt (sampleRate * seconds / 512.0); ++i)
     {
         juce::MidiBuffer midi;
         if (singleHit && i == 0)
@@ -1453,9 +1478,37 @@ static int renderDemo (const char* path, const juce::StringArray& options)
     for (auto v : out)
         wav.writeShort ((short) juce::jlimit (-32767, 32767, (int) std::lround (v * 32767.0f)));
 
-    const auto ok = juce::File (juce::String::fromUTF8 (path)).replaceWithData (wav.getData(), wav.getDataSize());
+    return juce::File (path).replaceWithData (wav.getData(), wav.getDataSize());
+}
+
+static int renderDemo (const char* path, const juce::StringArray& options)
+{
+    const auto ok = renderToFile (juce::String::fromUTF8 (path), options);
     std::printf ("%s %s\n", ok ? "wrote" : "could not write", path);
     return ok ? 0 : 1;
+}
+
+// --render-stdin: one render per input line, "<wav>|<option>|<option>…", answers "ok" or "error" per line.
+// Keeps one process running for tools that render many variations (tools/sound-match).
+static int renderServer()
+{
+    std::string line;
+
+    while (std::getline (std::cin, line))
+    {
+        auto parts = juce::StringArray::fromTokens (juce::String::fromUTF8 (line.c_str()).trim(), "|", "");
+        parts.removeEmptyStrings();
+
+        if (parts.isEmpty())
+            continue;
+
+        const auto path = parts[0];
+        parts.remove (0);
+        std::printf ("%s\n", renderToFile (path, parts) ? "ok" : "error");
+        std::fflush (stdout);
+    }
+
+    return 0;
 }
 
 // Renders the editor while the service hatch opens (frames at 0.15 s steps) to check the animation.
@@ -1535,6 +1588,9 @@ int main (int argc, char** argv)
                              .getChildFile ("PS8Tests-" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()));
     ps8::setAppDataFolderOverride (scratch);
     struct CleanUp { juce::File folder; ~CleanUp() { folder.deleteRecursively(); } } cleanUp { scratch };
+
+    if (argc == 2 && std::string_view (argv[1]) == "--render-stdin")
+        return renderServer();
 
     if (argc >= 3 && std::string_view (argv[1]) == "--render")
     {

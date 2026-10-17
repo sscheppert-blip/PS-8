@@ -17,7 +17,8 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
   feedback and audio-rate patches allowed, DAW side-chain into EXT IN
 - 8 patterns per preset, step tools: shift, copy/paste a page, randomise, undo
 - ANALOG trimmer: per-instance component tolerances, thermal drift and hit-to-hit variation
-- Presets: 51 factory presets in 9 categories (the kicks matched to recordings of the original); save your own (incl. cables and patterns) as plain
+- Presets: 55 factory presets in 9 categories (kicks, hats, metal, FM perc and sub matched to recordings of
+  the original); save your own (incl. cables and patterns) as plain
   files in your user folder; the window size is remembered
 - SCRAM button: stops the sequencer and silences the voice
 - Oversampled (4× up to 48 kHz, 2× up to 96 kHz)

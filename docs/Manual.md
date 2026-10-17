@@ -191,7 +191,7 @@ its own EG AMOUNT.
 | **PITCH** | Decay time of the pitch envelope |
 | **FILTER** | Decay time of the filter envelope |
 | **VCA** | Decay time of the level – i.e. the length of the sound |
-| **VCA ATTACK** FAST / SLOW | Hard attack or soft onset (about 12 ms) |
+| **VCA ATTACK** FAST / SLOW | **FAST** opens the VCA almost instantly, like the original – that hard onset is the click of a kick. **SLOW** fades in over about 12 ms (no click) |
 | **DRIVE** | Saturation/distortion after the filter |
 
 All decays range from about 3 ms to 10 s. Like the original's VCA, PS-8's closes completely below a small
@@ -420,12 +420,12 @@ name. They are:
 
 | Category | Presets |
 |---|---|
-| **KICK** | Deep Kick, Punch Kick, Long Boom (soft, no click), Distorted Kick, Worn Kick (ANALOG up, free-running VCO), Tight Kick, Slow Sweep Kick – matched to recordings of the original instrument |
+| **KICK** | Deep Kick, Punch Kick, Long Boom (soft, VCA ATTACK SLOW), Distorted Kick, Worn Kick (ANALOG up, free-running VCO), Tight Kick, Slow Sweep Kick – matched to recordings of the original instrument |
 | **TOM** | Tom Melody, Low Toms, Disco Tom, Triplet Toms |
 | **SNARE / CLAP** | Snare, Tight Snare, Noise Clap (ratchets), Rim Shot, Ghost Notes (velocity) |
-| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong |
-| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc |
-| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG full) |
+| **HAT / METAL** | Closed Hat, Open Hat, Ride Metal, Swing Hats, Bit Hats, Metal Gong, Metal Hit, Clank – hats and metal hits matched to recordings of the original |
+| **PERCUSSION** | Cowbell, Clave, Shaker, Swing Perc, FM Perc (matched to the original) |
+| **BASS** | Acid Line, Sub Bass, Bounce Bass, FM Bass, Drift Bass (ANALOG full), FM Sub (matched to the original) |
 | **LEAD / FX** | Laser Zap, Bleeps, Ping Pong, Alarm, Robot Talk, Sweep Up, Static Rain |
 | **GROOVE** | Moving Groove, Random Pitches, Ratchet Rolls, Five Step (polymeter) |
 | **PATCHBAY** | Rolls (INT), Growl, Drone, Feedback, Melodic Filter, Filter Ping, Accent Filter, VCO Clock, Chaos Engine |
