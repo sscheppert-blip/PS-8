@@ -77,7 +77,21 @@ namespace ps8::ui
             g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre (centre));
         }
 
-        void drawTrace (juce::Graphics& g, std::initializer_list<juce::Point<float>> points)
+        // the board's colours: green with copper (control room) or black with gold (matte black)
+        struct Board
+        {
+            juce::Colour pcb, trace, silkscreen;
+        };
+
+        Board boardFor (const juce::Component* c)
+        {
+            if (isMatte (c))
+                return { matte::pcb, matte::gold.withAlpha (0.75f), matte::silkscreen };
+
+            return { colours::pcb, colours::copper, colours::silkscreen };
+        }
+
+        void drawTrace (juce::Graphics& g, const Board& board, std::initializer_list<juce::Point<float>> points)
         {
             juce::Path path;
             bool first = true;
@@ -92,18 +106,18 @@ namespace ps8::ui
                 first = false;
             }
 
-            g.setColour (colours::copper);
+            g.setColour (board.trace);
             g.strokePath (path, juce::PathStrokeType (2.2f, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded));
         }
 
-        void drawSection (juce::Graphics& g, juce::Rectangle<float> area, const juce::String& title)
+        void drawSection (juce::Graphics& g, const Board& board, juce::Rectangle<float> area, const juce::String& title)
         {
-            g.setColour (colours::silkscreen.withAlpha (0.7f));
+            g.setColour (board.silkscreen.withAlpha (0.7f));
             g.drawRoundedRectangle (area, 4.0f, 1.0f);
             const auto titleArea = juce::Rectangle<float> (area.getX() + 10.0f, area.getY() - 7.0f, 140.0f, 14.0f);
-            g.setColour (colours::pcb);
+            g.setColour (board.pcb);
             g.fillRect (titleArea.withWidth ((float) title.length() * 7.5f + 12.0f));
-            drawLabel (g, title, { titleArea.getX() + 6.0f, titleArea.getCentreY() }, 10.0f, colours::silkscreen,
+            drawLabel (g, title, { titleArea.getX() + 6.0f, titleArea.getCentreY() }, 10.0f, board.silkscreen,
                        juce::Justification::centredLeft);
         }
     }
@@ -224,6 +238,15 @@ namespace ps8::ui
 
     void KeySwitch::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            const auto face = matte::drawKey (g, juce::Rectangle<float> (56.0f, 30.0f).withCentre ({ 30.0f, 22.0f }), open);
+            matte::drawLed (g, juce::Rectangle<float> (14.0f, 3.0f).withCentre ({ face.getCentreX(), face.getY() + 6.0f }),
+                            matte::ledAmber, open);
+            matte::drawLabel (g, "SERVICE", { face.getCentreX(), face.getCentreY() + 4.0f }, 8.5f, open ? matte::ink : matte::inkDim);
+            return;
+        }
+
         const auto c = juce::Point<float> (30.0f, 22.0f);
         drawChrome (g, c, 17.0f);
         g.setGradientFill (juce::ColourGradient (juce::Colour (0xff3a3c3f), c.translated (-5.0f, -6.0f),
@@ -276,6 +299,24 @@ namespace ps8::ui
     {
         const char* names[] { "1-8", "9-16" };
         const auto w = ((float) getWidth() - 6.0f) * 0.5f;
+
+        if (isMatte (this))
+        {
+            for (int page = 0; page < 2; ++page)
+            {
+                const auto tab = juce::Rectangle<float> (2.0f + (w + 2.0f) * (float) page, 2.0f, w, (float) getHeight() - 4.0f);
+                const auto selected = page == shown;
+                g.setColour (selected ? juce::Colour (0xff36373a) : juce::Colour (0xff1c1d1f));
+                g.fillRoundedRectangle (tab, 3.0f);
+                g.setColour (juce::Colours::black);
+                g.drawRoundedRectangle (tab, 3.0f, 1.0f);
+                matte::drawLabel (g, names[page], tab.getCentre().translated (4.0f, 0.0f), 9.0f, selected ? matte::ink : matte::inkFaint);
+                matte::drawLed (g, juce::Rectangle<float> (5.0f, 5.0f).withCentre ({ tab.getX() + 9.0f, tab.getCentreY() }),
+                                matte::ledRed, page == playing);
+            }
+
+            return;
+        }
 
         for (int page = 0; page < 2; ++page)
         {
@@ -340,18 +381,25 @@ namespace ps8::ui
     void Hood::paint (juce::Graphics& g)
     {
         const auto bounds = getLocalBounds().toFloat();
-        g.setColour (colours::panel);
+        const auto matteLook = isMatte (this);
+        g.setColour (matteLook ? matte::chassisTop : colours::panel);
         g.fillRect (bounds);
-
-        // the cover's edge: a fine groove around it
-        g.setColour (colours::frame.darker (0.4f).withAlpha (0.7f));
-        g.drawRect (bounds.reduced (0.5f), 1.0f);
 
         if (painter)
         {
             juce::Graphics::ScopedSaveState save (g);
             g.addTransform (juce::AffineTransform::translation ((float) -getX(), (float) -getY()));
             painter (g);
+        }
+
+        // the cover's edge: a fine groove around it
+        g.setColour (matteLook ? juce::Colours::black : colours::frame.darker (0.4f).withAlpha (0.7f));
+        g.drawRect (bounds.reduced (0.5f), 1.0f);
+
+        if (matteLook)
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.06f));
+            g.drawHorizontalLine (1, 1.0f, bounds.getRight() - 1.0f);
         }
 
         for (auto p : screwPositions (bounds))
@@ -368,11 +416,14 @@ namespace ps8::ui
             const auto r = 5.5f + 1.5f * lift;
             g.setColour (juce::Colours::black.withAlpha (0.25f + 0.25f * lift));
             g.fillEllipse (juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (p.translated (1.0f + 2.0f * lift, 2.0f + 2.0f * lift)));
-            drawChrome (g, head, r);
+            if (matteLook)
+                matte::drawScrew (g, head, r - 0.5f);
+            else
+                drawChrome (g, head, r);
 
             const auto angle = -lift * juce::MathConstants<float>::twoPi * 3.0f + 0.3f;
             const auto dir = juce::Point<float> (std::cos (angle), std::sin (angle)) * (r - 1.5f);
-            g.setColour (juce::Colour (0xff4d524e));
+            g.setColour (matteLook ? juce::Colour (0xff050506) : juce::Colour (0xff4d524e));
             g.drawLine (juce::Line<float> (head - dir, head + dir), 1.4f);
         }
 
@@ -474,38 +525,39 @@ namespace ps8::ui
     void ServiceBoard::paint (juce::Graphics& g)
     {
         const auto bounds = getLocalBounds().toFloat();
+        const auto look = boardFor (this);
 
         // the board sits a little lower than the panel: dark gap around it
-        g.setColour (juce::Colour (0xff0d140f));
+        g.setColour (juce::Colour (isMatte (this) ? 0xff050506 : 0xff0d140f));
         g.fillRect (bounds);
         const auto board = bounds.reduced (3.0f);
-        g.setColour (colours::pcb);
+        g.setColour (look.pcb);
         g.fillRoundedRectangle (board, 4.0f);
 
         // fine solder-mask texture
-        g.setColour (juce::Colours::black.withAlpha (0.06f));
+        g.setColour (isMatte (this) ? juce::Colours::white.withAlpha (0.015f) : juce::Colours::black.withAlpha (0.06f));
         for (auto y = board.getY() + 4.0f; y < board.getBottom(); y += 6.0f)
             g.drawHorizontalLine ((int) y, board.getX(), board.getRight());
 
         // copper: from the trimmers down to the chips, and a bus along the bottom
         for (auto x : { 76.0f, 172.0f, 268.0f, 364.0f })
-            drawTrace (g, { { x + trimmerRadius + 4.0f, trimmerY }, { x + 30.0f, trimmerY }, { x + 30.0f, 186.0f },
+            drawTrace (g, look, { { x + trimmerRadius + 4.0f, trimmerY }, { x + 30.0f, trimmerY }, { x + 30.0f, 186.0f },
                             { juce::jlimit (90.0f, 330.0f, x + 10.0f), 196.0f } });
 
         for (auto x : { 500.0f, 596.0f, 692.0f, 788.0f })
-            drawTrace (g, { { x + trimmerRadius + 4.0f, trimmerY }, { x + 30.0f, trimmerY }, { x + 30.0f, 186.0f },
+            drawTrace (g, look, { { x + trimmerRadius + 4.0f, trimmerY }, { x + 30.0f, trimmerY }, { x + 30.0f, 186.0f },
                             { juce::jlimit (540.0f, 800.0f, x + 10.0f), 196.0f } });
 
-        drawTrace (g, { { 30.0f, 246.0f }, { 1158.0f, 246.0f } });
-        drawTrace (g, { { 880.0f, trimmerY + 30.0f }, { 880.0f, 170.0f }, { 960.0f, 170.0f }, { 960.0f, 128.0f } });
-        drawTrace (g, { { 1120.0f + trimmerRadius + 4.0f, trimmerY }, { 1150.0f, trimmerY }, { 1150.0f, 186.0f },
+        drawTrace (g, look, { { 30.0f, 246.0f }, { 1158.0f, 246.0f } });
+        drawTrace (g, look, { { 880.0f, trimmerY + 30.0f }, { 880.0f, 170.0f }, { 960.0f, 170.0f }, { 960.0f, 128.0f } });
+        drawTrace (g, look, { { 1120.0f + trimmerRadius + 4.0f, trimmerY }, { 1150.0f, trimmerY }, { 1150.0f, 186.0f },
                         { 1100.0f, 200.0f } });
 
         // sections
-        drawSection (g, { 20.0f, 34.0f, 412.0f, 140.0f }, "SEQ OPTIONS");
-        drawSection (g, { 446.0f, 34.0f, 488.0f, 140.0f }, "LFO");
-        drawSection (g, { 948.0f, 34.0f, 114.0f, 140.0f }, "STATUS");
-        drawSection (g, { 1072.0f, 34.0f, 96.0f, 140.0f }, "ANALOG");
+        drawSection (g, look, { 20.0f, 34.0f, 412.0f, 140.0f }, "SEQ OPTIONS");
+        drawSection (g, look, { 446.0f, 34.0f, 488.0f, 140.0f }, "LFO");
+        drawSection (g, look, { 948.0f, 34.0f, 114.0f, 140.0f }, "STATUS");
+        drawSection (g, look, { 1072.0f, 34.0f, 96.0f, 140.0f }, "ANALOG");
 
         // parts
         drawChip (g, { 70.0f, 198.0f, 96.0f, 30.0f }, 8, "PS8-SEQ");
@@ -522,10 +574,10 @@ namespace ps8::ui
         drawResistor (g, { 930.0f, 226.0f }, { 0xff8b4513, 0xff1a1a1a, 0xffe6a12a, 0xffc9a24a });
 
         // silkscreen
-        drawLabel (g, "PS-8 SERVICE BOARD  REV 2.1", { 30.0f, 18.0f }, 11.0f, colours::silkscreen, juce::Justification::centredLeft);
-        drawLabel (g, "EXTRAS - QUALIFIED PERSONNEL ONLY", { 1150.0f, 18.0f }, 10.0f, colours::silkscreen.withAlpha (0.8f),
+        drawLabel (g, "PS-8 SERVICE BOARD  REV 2.1", { 30.0f, 18.0f }, 11.0f, look.silkscreen, juce::Justification::centredLeft);
+        drawLabel (g, "EXTRAS - QUALIFIED PERSONNEL ONLY", { 1150.0f, 18.0f }, 10.0f, look.silkscreen.withAlpha (0.8f),
                    juce::Justification::centredRight);
-        drawLabel (g, "TP1", { 1040.0f, 160.0f }, 9.0f, colours::silkscreen.withAlpha (0.8f));
+        drawLabel (g, "TP1", { 1040.0f, 160.0f }, 9.0f, look.silkscreen.withAlpha (0.8f));
         g.setColour (juce::Colour (0xffd6b25a));
         g.fillEllipse (juce::Rectangle<float> (8.0f, 8.0f).withCentre ({ 1040.0f, 146.0f }));
 

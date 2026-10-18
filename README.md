@@ -13,7 +13,8 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
   host-synced) on pitch, VCO 2, cutoff, FM or volume
 - Internal tempo or locked to the host's bar position, 1/4 … 1/32 incl. triplets
 - MIDI: play single steps, advance, retrigger and reset by note
-- Patchbay with 26 jacks: re-route envelopes, oscillators, sequencer clock, run and reset by cable;
+- Patchbay with 32 jacks and two attenuators: re-route envelopes, oscillators, the LFO, sequencer clock,
+  run and reset by cable;
   feedback and audio-rate patches allowed, DAW side-chain into EXT IN
 - 8 patterns per preset, step tools: shift, copy/paste a page, randomise, undo
 - ANALOG trimmer: per-instance component tolerances, thermal drift and hit-to-hit variation
@@ -28,6 +29,10 @@ control-room look. Built with JUCE as AU, VST3, CLAP and Standalone for macOS, W
 ![PS-8 front panel](docs/images/panel.png)
 
 ![PS-8 service board](docs/images/service.png)
+
+Two looks, switched in the menu: Matte Black (above) and Control Room.
+
+![PS-8 in the Control Room look](docs/images/panel-control-room.png)
 
 ## Download
 

@@ -5,8 +5,9 @@ namespace ps8::ui
 {
     namespace
     {
-        constexpr float inputX = 62.0f, outputX = 790.0f, columnPitch = 76.0f;
-        constexpr int inputColumns = 9;
+        // three blocks: inputs (9 columns), outputs (5), utility (input, knob, output)
+        constexpr float columnPitch = 66.0f, inputX = 76.0f, outputX = 660.0f, utilityX = 984.0f;
+        constexpr int inputColumns = 9, outputColumns = 5;
         constexpr float rowY[] { Patchbay::top + 70.0f, Patchbay::top + 128.0f };
         constexpr float jackRadius = 15.0f;
 
@@ -37,6 +38,7 @@ namespace ps8::ui
                 { "RUN",      false, runIn,        at (inputX, 5, 1) },
                 { "ADV/CLK",  false, advClockIn,   at (inputX, 6, 1) },
                 { "RESET",    false, resetIn,      at (inputX, 7, 1) },
+                { "VCF CV",   false, vcfCvIn,      at (inputX, 8, 1) },
 
                 // outputs
                 { "VCO 1",    true,  vco1Out,      at (outputX, 0, 0) },
@@ -48,6 +50,13 @@ namespace ps8::ui
                 { "VELOCITY", true,  velocityOut,  at (outputX, 1, 1) },
                 { "PITCH",    true,  pitchOut,     at (outputX, 2, 1) },
                 { "VCA",      true,  vcaOut,       at (outputX, 3, 1) },
+                { "LFO",      true,  lfoOut,       at (outputX, 4, 1) },
+
+                // utility: two attenuators, knob between input and output
+                { "IN",       false, att1In,       at (utilityX, 0, 0) },
+                { "OUT",      true,  att1Out,      at (utilityX, 2, 0) },
+                { "IN",       false, att2In,       at (utilityX, 0, 1) },
+                { "OUT",      true,  att2Out,      at (utilityX, 2, 1) },
             } };
         }
 
@@ -104,6 +113,11 @@ namespace ps8::ui
         }
     }
 
+    juce::Point<float> Patchbay::attenuatorKnob (int index)
+    {
+        return at (utilityX, 1, index);
+    }
+
     const std::array<Patchbay::Jack, Patchbay::numJacks>& Patchbay::jacks()
     {
         static const auto all = makeJacks();
@@ -130,20 +144,86 @@ namespace ps8::ui
         return jacks()[0];
     }
 
-    void Patchbay::paintPanel (juce::Graphics& g, float width)
+    void Patchbay::paintPanel (juce::Graphics& g, float width, Theme theme)
     {
+        const auto inputsEnd = inputX + (float) (inputColumns - 1) * columnPitch;
+        const auto outputsEnd = outputX + (float) (outputColumns - 1) * columnPitch;
+
+        if (theme == Theme::matteBlack)
+        {
+            matte::drawSection (g, { 20.0f, top + 2.0f, width - 40.0f, 0.0f }, {});
+
+            // three blocks: inputs and utility recessed, outputs on a raised plate with inverted labels
+            const auto block = [] (float firstX, float lastX) { return juce::Rectangle<float> (firstX - 26.0f, top + 28.0f, lastX - firstX + 52.0f, 126.0f); };
+            const auto inputs = block (inputX, inputsEnd);
+            const auto outputs = block (outputX, outputsEnd);
+            const auto utility = block (utilityX, utilityX + 2.0f * columnPitch);
+
+            for (const auto& r : { inputs, utility })
+            {
+                g.setColour (juce::Colours::black.withAlpha (0.25f));
+                g.fillRoundedRectangle (r, 6.0f);
+                g.setColour (juce::Colours::black);
+                g.drawRoundedRectangle (r, 6.0f, 1.0f);
+            }
+
+            g.setGradientFill (juce::ColourGradient (juce::Colour (0xff2b2c2f), 0.0f, outputs.getY(),
+                                                     juce::Colour (0xff222326), 0.0f, outputs.getBottom(), false));
+            g.fillRoundedRectangle (outputs, 6.0f);
+            g.setColour (juce::Colours::black);
+            g.drawRoundedRectangle (outputs, 6.0f, 1.0f);
+            g.setColour (juce::Colours::white.withAlpha (0.06f));
+            g.drawHorizontalLine ((int) outputs.getY() + 1, outputs.getX() + 6.0f, outputs.getRight() - 6.0f);
+
+            // block titles with arrows: into the instrument, out of it
+            auto title = [&g] (juce::Rectangle<float> r, const juce::String& text, int arrow)
+            {
+                auto x = r.getX() + 4.0f;
+                const auto y = top + 15.0f;
+
+                if (arrow != 0)
+                {
+                    juce::Path p;
+                    const auto d = (float) arrow;   // +1 down, -1 up
+                    p.addTriangle (x, y - 3.5f * d, x + 8.0f, y - 3.5f * d, x + 4.0f, y + 3.5f * d);
+                    g.setColour (arrow > 0 ? matte::inkDim : matte::ink);
+                    g.fillPath (p);
+                    x += 14.0f;
+                }
+
+                matte::drawLabel (g, text, { x, y }, 9.5f, matte::ink, juce::Justification::centredLeft);
+            };
+
+            title (inputs, "INPUTS", 1);
+            title (outputs, "OUTPUTS", -1);
+            title (utility, "UTILITY", 0);
+
+            for (const auto& jack : jacks())
+                matte::drawJack (g, jack.centre, jack.label, jack.output);
+
+            for (int i = 0; i < 2; ++i)
+                matte::drawLabel (g, i == 0 ? "ATT 1" : "ATT 2", attenuatorKnob (i).translated (0.0f, -22.0f), 9.0f);
+
+            return;
+        }
+
         drawPlate (g, { 20.0f, top, width - 40.0f, height }, "PATCHBAY");
 
-        // divider between inputs and outputs
-        const auto dividerX = (inputX + (float) (inputColumns - 1) * columnPitch + outputX) * 0.5f;
+        // dividers between the blocks
         g.setColour (colours::ink.withAlpha (0.5f));
-        g.drawLine (dividerX, top + 42.0f, dividerX, top + height - 14.0f, 1.5f);
+
+        for (const auto x : { (inputsEnd + outputX) * 0.5f, (outputsEnd + utilityX) * 0.5f })
+            g.drawLine (x, top + 42.0f, x, top + height - 14.0f, 1.5f);
 
         for (const auto& jack : jacks())
             drawJack (g, jack.centre, jack.label, jack.output);
 
-        drawLabel (g, "INPUTS", { inputX + 0.5f * (float) (inputColumns - 1) * columnPitch, top + height - 12.0f }, 10.0f, colours::plateShade);
-        drawLabel (g, "OUTPUTS", { outputX + 2.0f * columnPitch, top + height - 12.0f }, 10.0f, colours::plateShade);
+        drawLabel (g, "INPUTS", { (inputX + inputsEnd) * 0.5f, top + height - 12.0f }, 10.0f, colours::plateShade);
+        drawLabel (g, "OUTPUTS", { (outputX + outputsEnd) * 0.5f, top + height - 12.0f }, 10.0f, colours::plateShade);
+        drawLabel (g, "UTILITY", { utilityX + columnPitch, top + height - 12.0f }, 10.0f, colours::plateShade);
+
+        for (int i = 0; i < 2; ++i)
+            drawLabel (g, i == 0 ? "ATT 1" : "ATT 2", attenuatorKnob (i).translated (0.0f, -27.0f), 10.0f);
     }
 
     //==============================================================================

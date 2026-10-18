@@ -139,16 +139,31 @@ Die Hüllkurven springen sofort auf voll und klingen dann ab – wie lange, best
 
 ## 4. Die Frontplatte
 
+### Zwei Looks
+
+PS-8 gibt es in zwei Looks: **Matte Black** (ab Werk – matte Regler mit Wertering, Gummitasten mit
+LEDs, OLED-Display) und **Control Room** (grüne Platte, Bakelit-Regler, Kippschalter, Zeigerinstrumente
+und Nixie-Röhren). Umschalten unter **MENU → Look**. Die Wahl gilt für alle PS-8-Fenster und bleibt
+gespeichert; Klang, Presets, Kabel und Aufteilung sind in beiden gleich.
+
+![PS-8 im Look Control Room](images/panel-control-room.png)
+
+In Matte Black ist ein Schalter eine Taste: Jeder Klick schaltet zur nächsten Stellung, die Taste zeigt
+die aktuelle, ihre LED ist bei OFF/STOP aus. Auch die obere Leiste unterscheidet sich:
+
+| Matte Black | Control Room | Zeigt |
+|---|---|---|
+| OLED-Display | TEMPO BPM, STEP (Nixies), RUN-Lampe | Pattern, INT/HOST, Tempo, das Preset – oder kurz den gerade bewegten Regler mit Wert –, den Step und einen Balken der Sequenz (hell = Step an, weiß = spielt) |
+| OUTPUT (LED-Reihe) | OUTPUT (Zeiger) | Ausgangspegel, −36 … +3 dB (LEDs) bzw. −20 … +3 dB (Zeiger); die roten LEDs liegen über 0 dB |
+| – | LOAD (Zeiger) | Rechenlast |
+
 ### Obere Leiste
 
 | Element | Funktion |
 |---|---|
 | **PROGRAM** | Preset-Name, ◀ ▶ zum Blättern, SAVE, MENU – siehe [8. Presets](#8-presets) |
-| **OUTPUT** (Zeiger) | Ausgangspegel: links −20 dB, Mitte 0 dB, rechts +3 dB |
-| **LOAD** (Zeiger) | Rechenlast des Plugins in Prozent |
-| **TEMPO BPM** (Nixies) | Aktuelles Tempo – das eigene oder das der DAW |
-| **RUN** (grüne Lampe) | Leuchtet, wenn der Sequencer läuft |
-| **STEP** (Nixies) | Zuletzt gespielter Step |
+| **Display** / **TEMPO BPM**, **RUN**, **STEP** | Tempo (das eigene oder das der DAW), ob der Sequencer läuft, zuletzt gespielter Step – siehe [Zwei Looks](#zwei-looks) |
+| **OUTPUT** | Ausgangspegel – siehe [Zwei Looks](#zwei-looks) |
 | **SCRAM** | Not-Aus: Sequencer stoppt (RUN geht aus), der Klang verstummt sofort, die Step-Lampen blinken kurz rot |
 | **SERVICE** (Schlüssel) | Öffnet und schließt die Haube über der Modulreihe – siehe [6. Unter der Haube](#6-unter-der-haube-die-service-platine) |
 
@@ -286,13 +301,13 @@ In der Modulreihe ist nur, was zum Original gehört. Die Klang-Extras sitzen auf
 wie hinter der Wartungsklappe einer Leitwarte. Alles, was du beim Spielen des Sequencers brauchst
 (Rate, Länge, Ratchet, Chance), bleibt vorne.
 
-- **Öffnen:** den **SERVICE**-Schlüssel drehen (oben rechts neben SCRAM) oder auf eine der vier
+- **Öffnen:** **SERVICE** drücken (oben rechts neben SCRAM; in Control Room ein Schlüsselschalter) oder auf eine der vier
   Schrauben an den Ecken der Modulreihe klicken. Die Schrauben drehen sich raus, die Haube klappt hoch.
-- **Schließen:** den Schlüssel zurückdrehen oder auf eines der vier Schraubenlöcher der Platine klicken.
+- **Schließen:** SERVICE noch mal drücken oder auf eines der vier Schraubenlöcher der Platine klicken.
 - Ob die Haube offen ist, wird mit dem Projekt gespeichert. Presets ändern daran nichts.
 
-Ab Werk ist hier alles neutral: keine Skala, kein Glide, kein Swing, LFO-Stärke 0, ANALOG 0 %. Die blauen Trimmpotis
-bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt eine kleine Anzeige den Wert.
+Ab Werk ist hier alles neutral: keine Skala, kein Glide, kein Swing, LFO-Stärke 0, ANALOG 0 %. Die Trimmpotis
+(blau auf der grünen Platine, silbern auf der schwarzen) bedienst du wie die Regler (ziehen, Doppelklick setzt zurück); darunter zeigt eine kleine Anzeige den Wert.
 
 ### SEQ OPTIONS
 
@@ -352,7 +367,7 @@ werden mit dem Projekt und mit Presets gespeichert, lassen sich aber nicht autom
 ein 5-V-Impuls von 5 ms. TRIG, RUN, ADV/CLK und RESET schalten bei 2,5 V. Bei Eingängen, die zu einem
 Regler addieren, deckt 5 V den ganzen Reglerweg ab.
 
-### Ausgänge (schwarz)
+### Ausgänge (schwarzes Quadrat / erhöhte Platte mit weißen Schildern)
 
 | Buchse | Signal |
 |---|---|
@@ -364,6 +379,7 @@ Regler addieren, deckt 5 V den ganzen Reglerweg ab.
 | **VELOCITY** | Velocity des aktuellen Steps |
 | **PITCH** | Tonhöhe des aktuellen Steps, 1 V pro Oktave |
 | **VCA** | Der fertige Klang nach dem VCA, vor VOLUME |
+| **LFO** *(Extra)* | Der LFO (Service-Platine) in voller Stärke, ±5 V – RATE, SHAPE und SYNC gelten, DEPTH und TARGET nicht. Überallhin patchbar |
 
 ### Eingänge
 
@@ -371,6 +387,7 @@ Regler addieren, deckt 5 V den ganzen Reglerweg ab.
 |---|---|---|
 | **VCO 1 CV**, **VCO 2 CV** | Tonhöhe, 1 V pro Oktave. PITCH in VCO 1 CV verschiebt VCO 1 genau um die Step-Tonhöhe | – |
 | **VCO RST** *(Extra)* | Eine steigende Flanke startet beide VCOs an derselben Stelle der Welle neu. TRIG → VCO RST lässt jeden Schlag gleich klingen | VCOs laufen frei |
+| **VCF CV** *(Extra)* | Cutoff, 1 V pro Oktave, direkt. PITCH in VCF CV lässt das Filter genau der Melodie folgen | – |
 | **1>2 FM** | Addiert zu FM 1>2 AMOUNT | – |
 | **VCO DEC** | Addiert zum PITCH-Decay | – |
 | **NOISE** | Addiert zum Noise-LEVEL | – |
@@ -390,6 +407,14 @@ Regler addieren, deckt 5 V den ganzen Reglerweg ab.
 eine Spur darauf. Solange er aktiv ist und kein Kabel in EXT IN steckt, nimmt sein Audio den Platz des
 Rauschens ein – es läuft wie das Rauschen durch Filter, VCA und Hüllkurven.
 
+### Utility (Extra)
+
+Zwei Abschwächer, **ATT 1** und **ATT 2**: Was in **IN** hineingeht, kommt aus **OUT** mit dem Regler
+skaliert heraus – ganz rechts = unverändert (ab Werk), Mitte = nichts, links = umgepolt. Ohne Kabel in IN
+liefert OUT eine feste Spannung (+5 V mal Regler), praktisch als Hand-Offset oder Gate. Damit wird jedes
+Kabel feinfühlig: VCA EG → ATT 1 IN, ATT 1 OUT → TEMPO, und der Regler bestimmt, wie stark die Schläge den
+Takt beschleunigen.
+
 ### Patch-Ideen
 
 - **Wirbel:** VCA EG → TEMPO. Jeder Schlag beschleunigt kurz den Takt – Rolls und Bursts, die dem
@@ -401,6 +426,12 @@ Rauschens ein – es läuft wie das Rauschen durch Filter, VCA und Hüllkurven.
 - **Akzente formen den Klang:** VELOCITY → VCF DEC. Laute Steps bekommen einen längeren Filter-Sweep.
 - **Rückkopplung:** VCA → EXT IN, Noise-LEVEL vorsichtig aufdrehen. Der Klang speist sich selbst – dreckig
   und instabil.
+- **Sanfte Wirbel:** VCA EG → ATT 1 IN, ATT 1 OUT → TEMPO, ATT 1 etwa auf 10 Uhr. Links von der Mitte
+  bremsen laute Schläge den Takt stattdessen.
+- **LFO überall:** LFO → VCA DEC (atmende Längen), LFO über ATT 2 → VCO 2 CV (sanftes Vibrato), LFO mit
+  SYNC als Rechteck → RUN (die Sequenz spielt jeden zweiten Takt).
+- **Filter als zweite Stimme:** VCO- und Noise-Pegel runter, RESONANCE ganz rechts, PITCH → VCF CV – das
+  Filter pfeift die Step-Melodie sauber gestimmt.
 - **Gleiche Schläge:** TRIG → VCO RST. Jede Kick hat denselben Klick und Druck, wie bei einer klassischen
   Drum Machine. (Deep Kick und Tom Melody sind ab Werk so gepatcht.)
 - **VCO als Takt:** VCO 1 FREQUENCY ganz links, VCO 1 → ADV/CLK, VCO-1-LEVEL runter. Jetzt taktet VCO 1
@@ -417,7 +448,7 @@ seit dem Laden etwas verändert. Oben rechts steht, ob es ein **FACTORY**- oder 
 |---|---|
 | **◀ ▶** | Voriges / nächstes Preset: Init, dann die Werks-Presets, dann deine eigenen (am Ende geht es von vorn los) |
 | **SAVE** | Den aktuellen Klang als eigenes Preset speichern. Gibt es den Namen schon, fragt PS-8 vor dem Überschreiben nach |
-| **MENU** oder Klick auf den Namen | Alle Presets auf einen Blick, dazu **Save as…** (Speichern unter), **Rename…** (Umbenennen), **Delete** (Löschen) und **Open preset folder** (Ordner öffnen) |
+| **MENU** oder Klick auf den Namen | Alle Presets auf einen Blick, dazu **Save as…** (Speichern unter), **Rename…** (Umbenennen), **Delete** (Löschen), **Open preset folder** (Ordner öffnen) und **Look** (Aussehen der Platte, siehe [Zwei Looks](#zwei-looks)) |
 
 **Was ein Preset enthält:** alle Regler und Schalter, alle acht Step-Patterns (Pitch, Velocity, an/aus,
 Ratchet, Chance, Länge) und welches davon spielt, Rate, Scale, Root, Glide, Swing, den LFO und die
@@ -612,7 +643,7 @@ Die Anzeige „Steps 1-8 / 9-16“, die Wahl VELOCITY / RATCHET / CHANCE, die of
 | Latenz | wenige Samples (wird der DAW gemeldet) |
 | Ausgang | Mono-Signal auf Stereo-Ausgang |
 | Eingang | optionaler Sidechain (mono oder stereo) für EXT IN |
-| Patchbay | 17 Eingänge, 9 Ausgänge |
+| Patchbay | 20 Eingänge, 12 Ausgänge, 2 Abschwächer |
 | Filter | 4-Pol-Ladder, Tief- und Hochpass, selbstoszillierend |
 | CPU | unter 1 % eines Kerns (gemessen auf einem aktuellen Mac) |
 

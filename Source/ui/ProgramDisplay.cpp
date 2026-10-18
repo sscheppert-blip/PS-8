@@ -9,7 +9,8 @@ namespace ps8::ui
         enum MenuId
         {
             initId = 1, factoryBase = 100, userBase = 1000,
-            saveAsId = 9001, renameId, deleteId, openFolderId
+            saveAsId = 9001, renameId, deleteId, openFolderId,
+            themeBase = 9100
         };
 
         // a small modal dialog asking for a preset name
@@ -92,8 +93,60 @@ namespace ps8::ui
         return Key::none;
     }
 
+    void ProgramDisplay::paintMatte (juce::Graphics& g)
+    {
+        matte::drawLabel (g, "PROGRAM", { 0.0f, 6.0f }, 8.5f, matte::inkFaint, juce::Justification::centredLeft);
+        matte::drawLabel (g, shownFactory ? "FACTORY" : "USER", { (float) width, 6.0f }, 8.5f, matte::inkFaint,
+                          juce::Justification::centredRight);
+
+        // small OLED window
+        const auto window = areaOf (Key::name);
+        g.setColour (juce::Colour (0xff050506));
+        g.fillRoundedRectangle (window.expanded (2.0f), 4.0f);
+        g.setColour (juce::Colour (0xff2c2d30));
+        g.drawRoundedRectangle (window.expanded (2.0f), 4.0f, 1.0f);
+        g.setColour (juce::Colour (0xff020304));
+        g.fillRoundedRectangle (window, 2.0f);
+
+        const auto text = window.reduced (8.0f, 0.0f).withTrimmedRight (12.0f);
+        g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 15.0f, juce::Font::plain)));
+        g.setColour (juce::Colour (0xffd9f0ff));
+        g.drawText (shownName.toUpperCase() + (shownModified ? " *" : ""), text, juce::Justification::centredLeft, true);
+
+        juce::Path arrow;
+        const auto a = juce::Point<float> (window.getRight() - 12.0f, window.getCentreY());
+        arrow.addTriangle (a.x - 4.0f, a.y - 2.5f, a.x + 4.0f, a.y - 2.5f, a.x, a.y + 3.0f);
+        g.setColour (matte::oled.withAlpha (0.7f));
+        g.fillPath (arrow);
+
+        for (const auto key : { Key::previous, Key::next, Key::save, Key::menu })
+        {
+            const auto face = matte::drawKey (g, areaOf (key).withTrimmedBottom (3.0f), pressed == key, 3.0f);
+            const auto c = face.getCentre();
+
+            if (key == Key::previous || key == Key::next)
+            {
+                const auto s = key == Key::next ? 1.0f : -1.0f;
+                juce::Path triangle;
+                triangle.addTriangle (c.x - 3.5f * s, c.y - 4.5f, c.x - 3.5f * s, c.y + 4.5f, c.x + 4.5f * s, c.y);
+                g.setColour (matte::inkDim);
+                g.fillPath (triangle);
+            }
+            else
+            {
+                matte::drawLabel (g, key == Key::save ? "SAVE" : "MENU", c, 9.0f, matte::inkDim);
+            }
+        }
+    }
+
     void ProgramDisplay::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            paintMatte (g);
+            return;
+        }
+
         drawLabel (g, "PROGRAM", { 0.0f, 6.0f }, 9.0f, colours::dimText, juce::Justification::centredLeft);
         drawLabel (g, shownFactory ? "FACTORY" : "USER", { (float) width, 6.0f }, 9.0f, colours::dimText,
                    juce::Justification::centredRight);
@@ -220,6 +273,15 @@ namespace ps8::ui
         menu.addItem (deleteId, "Delete", isUserPreset);
         menu.addItem (openFolderId, "Open preset folder");
 
+        // the panel's look, for all instances
+        juce::PopupMenu looks;
+        const auto shown = themeOf (this);
+
+        for (int i = 0; i < (int) Theme::numThemes; ++i)
+            looks.addItem (themeBase + i, themeName ((Theme) i), true, (Theme) i == shown);
+
+        menu.addSubMenu ("Look", looks);
+
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                             [safe = juce::Component::SafePointer<ProgramDisplay> (this), user] (int result)
         {
@@ -240,6 +302,8 @@ namespace ps8::ui
                 self.askToRename();
             else if (result == deleteId)
                 self.askToDelete();
+            else if (result >= themeBase && result < themeBase + (int) Theme::numThemes)
+                self.settings->setThemeId (themeId ((Theme) (result - themeBase)));   // the editor rebuilds the panel
             else if (result == openFolderId)
             {
                 Presets::folder().createDirectory();

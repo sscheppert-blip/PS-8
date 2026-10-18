@@ -118,7 +118,7 @@ private:
                           * noiseLevel, * noisePink, * noiseVcf,
                           * cutoff, * resonance, * vcfEg, * highPass,
                           * pitchDecay, * vcfDecay, * vcaDecay, * vcaSlow, * drive, * volume,
-                          * analog,
+                          * analog, * att1, * att2,
                           * tempo, * run, * hostClock, * rate, * pitchTarget, * length, * scale, * glide, * root, * swing,
                           * lfoRate, * lfoDivision, * lfoSync, * lfoShape, * lfoDepth, * lfoTarget;
         std::array<std::atomic<float>*, ps8::seq::maxSteps> pitch {}, velocity {}, on {}, ratchet {}, chance {};

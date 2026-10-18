@@ -3,8 +3,11 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
-// Control-room style front panel parts: bakelite knobs, chrome toggle switches, lamp buttons,
-// nixie tubes, needle gauges and the SCRAM button.
+#include "Theme.h"
+
+// Front panel parts. Each paints itself in the panel's theme (see Theme.h): control room = bakelite
+// knobs, chrome toggle switches, lamp buttons, nixie tubes, needle gauges; matte black = matte knobs
+// with value rings, rubber keys with LEDs.
 namespace ps8::ui
 {
     namespace colours
@@ -106,16 +109,35 @@ namespace ps8::ui
 
         void place (juce::Point<float> centre);
         void paint (juce::Graphics&) override;
+        bool hitTest (int x, int y) override;
         void mouseUp (const juce::MouseEvent&) override;
 
     private:
         void setIndex (int index);
         juce::Point<float> centre() const;
+        juce::Rectangle<float> matteKey() const;
+        void paintMatte (juce::Graphics&);
 
         std::vector<float> positions;
         Labels labels;
         int index = 0;
         juce::ParameterAttachment attachment;
+    };
+
+    // Output level as a row of LED segments (matte black); level 0..1, clip lights the last segment.
+    class LedMeter final : public juce::Component
+    {
+    public:
+        static constexpr int numSegments = 14, numRed = 2;
+
+        LedMeter();
+
+        void setLevel (float level, bool clip);
+        void paint (juce::Graphics&) override;
+
+    private:
+        int lit = 0;
+        bool clipped = false;
     };
 
     // Square lamp push button of a sequencer step: toggles the step on/off, lights up when playing.

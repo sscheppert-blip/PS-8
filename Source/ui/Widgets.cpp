@@ -239,6 +239,20 @@ namespace ps8::ui
         const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat();
         const auto centre = bounds.getCentre();
 
+        if (isMatte (&slider))
+        {
+            const auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f - 14.0f;
+            const auto angle = startAngle + sliderPos * (endAngle - startAngle);
+
+            if ((bool) slider.getProperties().getWithDefault ("trimmer", false))
+                matte::drawTrimmer (g, centre, radius, angle, (int) slider.getProperties().getWithDefault ("ticks", 11),
+                                    startAngle, endAngle);
+            else
+                matte::drawKnob (g, centre, radius, angle, startAngle, endAngle,
+                                 (bool) slider.getProperties().getWithDefault ("bipolar", false));
+            return;
+        }
+
         if ((bool) slider.getProperties().getWithDefault ("trimmer", false))
         {
             drawTrimmer (g, centre, juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f - 14.0f,
@@ -281,9 +295,18 @@ namespace ps8::ui
         g.strokePath (pointer, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    void KnobLookAndFeel::drawBubble (juce::Graphics& g, juce::BubbleComponent&, const juce::Point<float>&,
+    void KnobLookAndFeel::drawBubble (juce::Graphics& g, juce::BubbleComponent& bubble, const juce::Point<float>&,
                                       const juce::Rectangle<float>& body)
     {
+        if (isMatte (&bubble))
+        {
+            g.setColour (juce::Colour (0xf0050506));
+            g.fillRoundedRectangle (body, 3.0f);
+            g.setColour (matte::line.brighter (0.4f));
+            g.drawRoundedRectangle (body.reduced (0.5f), 3.0f, 1.0f);
+            return;
+        }
+
         g.setColour (colours::ink);
         g.fillRoundedRectangle (body, 3.0f);
         g.setColour (colours::nixie.withAlpha (0.6f));
@@ -341,6 +364,8 @@ namespace ps8::ui
         // swallow the second click of a double-click in some hosts.
         if (auto* top = getTopLevelComponent(); top != nullptr && top != this)
             slider.setPopupDisplayEnabled (true, true, top);
+
+        slider.setColour (juce::TooltipWindow::textColourId, isMatte (this) ? matte::oled : colours::nixie);
     }
 
     void Knob::place (juce::Point<float> centre)
@@ -360,6 +385,26 @@ namespace ps8::ui
     void Knob::paint (juce::Graphics& g)
     {
         const auto bottom = (radius + 14.0f) * 2.0f;
+
+        if (isMatte (this))
+        {
+            if (label.isNotEmpty())
+                matte::drawLabel (g, label, { (float) getWidth() * 0.5f, bottom + 6.0f }, 9.5f,
+                                  trimmer ? matte::silkscreen : matte::inkDim);
+
+            if (showValue && parameter != nullptr)
+            {
+                const auto tag = juce::Rectangle<float> (70.0f, 15.0f).withCentre ({ (float) getWidth() * 0.5f, bottom + 24.0f });
+                g.setColour (juce::Colour (0xff050506));
+                g.fillRoundedRectangle (tag, 2.0f);
+                g.setColour (matte::line.brighter (0.3f));
+                g.drawRoundedRectangle (tag, 2.0f, 0.8f);
+                matte::drawLabel (g, parameter->getCurrentValueAsText(), tag.getCentre(), 9.5f, matte::oled,
+                                  juce::Justification::centred, false);
+            }
+
+            return;
+        }
 
         if (label.isNotEmpty())
             drawLabel (g, label, { (float) getWidth() * 0.5f, bottom + 6.0f }, trimmer ? 11.0f : 12.0f,
@@ -466,6 +511,35 @@ namespace ps8::ui
 
     void Stepper::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            matte::drawLabel (g, label, { 2.0f, (float) getHeight() * 0.5f }, 9.0f, matte::inkFaint, juce::Justification::centredLeft);
+
+            const auto b = box();
+            g.setColour (juce::Colour (0xff050506));
+            g.fillRoundedRectangle (b, 3.0f);
+            g.setColour (matte::line.brighter (0.2f));
+            g.drawRoundedRectangle (b, 3.0f, 1.0f);
+
+            const auto& range = parameter.getNormalisableRange();
+            auto arrow = [&g] (juce::Point<float> c, bool left, bool enabled)
+            {
+                juce::Path p;
+                const auto d = left ? -1.0f : 1.0f;
+                p.addTriangle (c.x + 3.0f * d, c.y, c.x - 2.5f * d, c.y - 3.5f, c.x - 2.5f * d, c.y + 3.5f);
+                g.setColour (enabled ? matte::inkDim : matte::inkFaint.withAlpha (0.4f));
+                g.fillPath (p);
+            };
+
+            arrow ({ b.getX() + 9.0f, b.getCentreY() }, true, value > range.start + 0.5f);
+            arrow ({ b.getRight() - 9.0f, b.getCentreY() }, false, value < range.end - 0.5f);
+
+            g.setColour (matte::oled);
+            g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 12.0f, juce::Font::plain)));
+            g.drawText (parameter.getCurrentValueAsText().toUpperCase(), b.reduced (16.0f, 0.0f), juce::Justification::centred, false);
+            return;
+        }
+
         drawLabel (g, label, { 2.0f, (float) getHeight() * 0.5f }, 10.0f, colours::dimText, juce::Justification::centredLeft);
 
         const auto b = box();
@@ -521,6 +595,22 @@ namespace ps8::ui
 
     void SelectorKeys::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            // a list of modes, the chosen one lit
+            for (int i = 0; i < names.size(); ++i)
+            {
+                const auto key = keyBounds (i);
+                const auto lit = i == selected;
+                matte::drawLed (g, juce::Rectangle<float> (5.0f, 5.0f).withCentre ({ key.getX() + 6.0f, key.getCentreY() }),
+                                matte::ledRed, lit);
+                matte::drawLabel (g, names[i], { key.getX() + 15.0f, key.getCentreY() }, 9.0f,
+                                  lit ? matte::ink : matte::inkFaint, juce::Justification::centredLeft);
+            }
+
+            return;
+        }
+
         for (int i = 0; i < names.size(); ++i)
         {
             const auto key = keyBounds (i);
@@ -570,10 +660,30 @@ namespace ps8::ui
         repaint();
     }
 
+    juce::Rectangle<float> Toggle::matteKey() const
+    {
+        return juce::Rectangle<float> (52.0f, 30.0f).withCentre (centre());
+    }
+
+    bool Toggle::hitTest (int x, int y)
+    {
+        // the rubber key only; the lever's whole plate otherwise
+        return ! isMatte (this) || matteKey().expanded (4.0f).contains ((float) x, (float) y);
+    }
+
     void Toggle::mouseUp (const juce::MouseEvent& e)
     {
         const auto c = centre();
         const auto last = (int) positions.size() - 1;
+
+        if (isMatte (this))
+        {
+            // a key steps through the positions
+            if (matteKey().expanded (4.0f).contains (e.position))
+                setIndex (index >= last ? 0 : index + 1);
+
+            return;
+        }
 
         if (last == 1)
             setIndex (1 - index);
@@ -581,8 +691,32 @@ namespace ps8::ui
             setIndex (e.position.y < c.y ? juce::jmax (0, index - 1) : juce::jmin (last, index + 1));
     }
 
+    void Toggle::paintMatte (juce::Graphics& g)
+    {
+        const auto c = centre();
+        const auto last = (int) positions.size() - 1;
+        const auto text = index == 0 ? labels.top : index == last ? labels.bottom : labels.middle;
+
+        // the LED tells off (dark), on (red) and the other settings (white, amber for an outside clock)
+        const auto off = text == "OFF" || text == "STOP";
+        const auto led = text == "ON" || text == "RUN" ? matte::ledRed : text == "HOST" ? matte::ledAmber : matte::ledWhite;
+
+        const auto face = matte::drawKey (g, matteKey(), false);
+        matte::drawLed (g, juce::Rectangle<float> (14.0f, 3.0f).withCentre ({ face.getCentreX(), face.getY() + 6.0f }), led, ! off);
+        matte::drawLabel (g, text, { face.getCentreX(), face.getCentreY() + 4.0f }, 9.0f, off ? matte::inkFaint : matte::ink);
+
+        if (labels.name.isNotEmpty())
+            matte::drawLabel (g, labels.name, { c.x, labels.nameAbove ? c.y - 27.0f : c.y + 31.0f }, 9.5f);
+    }
+
     void Toggle::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            paintMatte (g);
+            return;
+        }
+
         const auto c = centre();
 
         drawLabel (g, labels.top, { c.x, c.y - 31.0f }, 10.0f);
@@ -642,6 +776,21 @@ namespace ps8::ui
 
     void LampButton::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            const auto face = matte::drawKey (g, getLocalBounds().toFloat().reduced (3.0f, 4.0f).translated (0.0f, -2.0f), false);
+            const auto bar = juce::Rectangle<float> (16.0f, 3.5f).withCentre ({ face.getCentreX(), face.getY() + 8.0f });
+
+            if (alarm)
+                matte::drawLed (g, bar, matte::ledRed, current);
+            else if (current)
+                matte::drawLed (g, bar, matte::ledWhite, true);
+            else
+                matte::drawLed (g, bar, inRange ? matte::ledRed : matte::ledRed.withMultipliedBrightness (0.45f), on);
+
+            return;
+        }
+
         const auto bounds = getLocalBounds().toFloat();
         g.setColour (colours::ink);
         g.fillRoundedRectangle (bounds, 3.0f);
@@ -696,6 +845,42 @@ namespace ps8::ui
 
     void PushButton::paint (juce::Graphics& g)
     {
+        if (isMatte (this))
+        {
+            if (scram)
+            {
+                const auto c = getLocalBounds().toFloat().getCentre();
+                const auto r = 30.0f;
+                const auto body = juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (c);
+                g.setColour (juce::Colours::black.withAlpha (0.55f));
+                g.fillEllipse (body.expanded (1.0f).translated (0.0f, down ? 2.0f : 4.0f));
+
+                if (down)
+                {
+                    g.setColour (matte::ledRed.withAlpha (0.25f));
+                    g.fillEllipse (body.expanded (6.0f));
+                }
+
+                const auto face = body.translated (0.0f, down ? 2.0f : 0.0f);
+                g.setGradientFill (juce::ColourGradient (juce::Colour (down ? 0xff5a1a16 : 0xff3a1513), 0.0f, face.getY(),
+                                                         juce::Colour (0xff1e0b0a), 0.0f, face.getBottom(), false));
+                g.fillEllipse (face);
+                g.setColour (juce::Colours::black);
+                g.drawEllipse (face, 1.0f);
+                g.setColour (juce::Colours::white.withAlpha (0.08f));
+                g.drawEllipse (face.reduced (1.5f), 1.0f);
+                matte::drawLabel (g, label, face.getCentre(), 10.0f, juce::Colour (0xffff6a5f));
+                return;
+            }
+
+            const auto area = juce::Rectangle<float> (42.0f, 28.0f).withCentre ({ (float) getWidth() * 0.5f, 16.0f });
+            const auto face = matte::drawKey (g, area, down);
+            matte::drawLed (g, juce::Rectangle<float> (14.0f, 3.0f).withCentre ({ face.getCentreX(), face.getY() + 6.0f }),
+                            matte::ledWhite, down);
+            matte::drawLabel (g, label, { face.getCentreX(), face.getCentreY() + 4.0f }, 9.0f, matte::inkDim);
+            return;
+        }
+
         if (scram)
         {
             const auto c = getLocalBounds().toFloat().getCentre();
@@ -858,6 +1043,12 @@ namespace ps8::ui
     {
         const auto bounds = getLocalBounds().toFloat().reduced (2.0f);
 
+        if (isMatte (this))
+        {
+            matte::drawLed (g, juce::Rectangle<float> (8.0f, 8.0f).withCentre (bounds.getCentre()), onColour, on);
+            return;
+        }
+
         if (on)
         {
             g.setColour (onColour.withAlpha (0.3f));
@@ -873,6 +1064,46 @@ namespace ps8::ui
         {
             g.setColour (juce::Colours::white.withAlpha (0.4f));
             g.fillEllipse (bounds.reduced (bounds.getWidth() * 0.3f).translated (-1.5f, -1.5f));
+        }
+    }
+
+    //==============================================================================
+    LedMeter::LedMeter()
+    {
+        setInterceptsMouseClicks (false, false);
+    }
+
+    void LedMeter::setLevel (float level, bool clip)
+    {
+        const auto segments = juce::jlimit (0, numSegments, juce::roundToInt (level * (float) numSegments));
+
+        if (segments != lit || clip != clipped)
+        {
+            lit = segments;
+            clipped = clip;
+            repaint();
+        }
+    }
+
+    void LedMeter::paint (juce::Graphics& g)
+    {
+        const auto pitch = (float) getWidth() / (float) numSegments;
+
+        for (int i = 0; i < numSegments; ++i)
+        {
+            const auto segment = juce::Rectangle<float> (pitch * (float) i, 0.0f, pitch - 3.0f, (float) getHeight());
+            const auto red = i >= numSegments - numRed;
+            const auto on = i < lit || (red && i == numSegments - 1 && clipped);
+            g.setColour (juce::Colours::black);
+            g.fillRoundedRectangle (segment.expanded (1.0f), 2.0f);
+
+            if (on)
+                matte::drawLed (g, segment, red ? matte::ledRed : matte::ink, true);
+            else
+            {
+                g.setColour (juce::Colour (0xff1e1f21));
+                g.fillRoundedRectangle (segment, 1.5f);
+            }
         }
     }
 }

@@ -348,4 +348,19 @@ namespace ps8
         appDataFolder().createDirectory();
         file->setValue ("editorWidth", width);
     }
+
+    juce::String UserSettings::getThemeId() const
+    {
+        return file->getValue ("theme");
+    }
+
+    void UserSettings::setThemeId (const juce::String& id)
+    {
+        if (file->getValue ("theme") == id)
+            return;
+
+        appDataFolder().createDirectory();
+        file->setValue ("theme", id);
+        sendChangeMessage();
+    }
 }

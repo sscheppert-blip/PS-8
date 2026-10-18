@@ -5,16 +5,19 @@
 #include "ui/ProgramDisplay.h"
 #include "ui/SequencerTools.h"
 #include "ui/ServiceBoard.h"
+#include "ui/StatusDisplay.h"
 #include "ui/Widgets.h"
 
 // The front panel, laid out in design coordinates (designWidth x designHeight) and scaled as a whole.
+// All themes share the layout; the top row (gauges and nixies or OLED and LED meter) and the painting
+// differ.
 class FrontPanel final : public juce::Component,
                          private juce::Timer
 {
 public:
     static constexpr int designWidth = 1200, designHeight = 876;
 
-    explicit FrontPanel (PS8AudioProcessor&);
+    FrontPanel (PS8AudioProcessor&, ps8::ui::Theme);
 
     void paint (juce::Graphics&) override;
 
@@ -26,6 +29,8 @@ private:
     void setService (bool open);
     void animateHatch();
     void paintModules (juce::Graphics&) const;
+    void paintControlRoom (juce::Graphics&);
+    void paintMatte (juce::Graphics&);
 
     template <typename T, typename... Args>
     T& make (Args&&... args)
@@ -48,6 +53,7 @@ private:
                              ps8::ui::Toggle::Labels, juce::Component* parent = nullptr);
 
     PS8AudioProcessor& processor;
+    const ps8::ui::Theme theme;
     std::vector<std::unique_ptr<juce::Component>> parts;
 
     ps8::ui::Gauge* outputGauge = nullptr;
@@ -55,6 +61,8 @@ private:
     ps8::ui::Nixie* bpmNixie = nullptr;
     ps8::ui::Nixie* stepNixie = nullptr;
     ps8::ui::Lamp* runLamp = nullptr;
+    ps8::ui::StatusDisplay* statusDisplay = nullptr;
+    ps8::ui::LedMeter* ledMeter = nullptr;
     ps8::ui::Lamp* clipLamp = nullptr;
     ps8::ui::Hood* hood = nullptr;
     ps8::ui::ServiceBoard* board = nullptr;
@@ -85,22 +93,31 @@ private:
     float screws = 0.0f, lid = 0.0f;
     double lastFrame = 0.0;
 
-    float outputNeedle = 0.0f, loadNeedle = 0.0f;
+    float outputNeedle = 0.0f, loadNeedle = 0.0f, meterLevel = 0.0f;
     double clipUntil = 0.0, alarmUntil = 0.0;
 };
 
-class PS8AudioProcessorEditor final : public juce::AudioProcessorEditor
+// Holds the front panel in the look chosen in the settings; rebuilds it when the look changes
+// (in any instance).
+class PS8AudioProcessorEditor final : public juce::AudioProcessorEditor,
+                                      private juce::ChangeListener
 {
 public:
     explicit PS8AudioProcessorEditor (PS8AudioProcessor&);
+    ~PS8AudioProcessorEditor() override;
 
     void resized() override;
 
 private:
     static constexpr int minWidth = 720, maxWidth = 1800;
 
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void buildPanel();
+
+    PS8AudioProcessor& processor;
     juce::SharedResourcePointer<ps8::UserSettings> settings;
-    FrontPanel panel;
+    std::unique_ptr<FrontPanel> panel;
+    ps8::ui::Theme theme = ps8::ui::defaultTheme;
     bool sizeRestored = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PS8AudioProcessorEditor)

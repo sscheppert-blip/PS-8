@@ -93,10 +93,30 @@ namespace ps8::ui
 
     void SequencerTools::paint (juce::Graphics& g)
     {
-        drawLabel (g, "PATTERN", { 2.0f, (float) height * 0.5f }, 10.0f, colours::dimText, juce::Justification::centredLeft);
+        const auto matteLook = isMatte (this);
 
-        auto key = [&g] (juce::Rectangle<float> area, bool lit, bool down)
+        // matte black: dark keys, the lit one inverted like the output labels
+        const auto litInk = matteLook ? juce::Colour (0xff111111) : colours::ink;
+        const auto keyInk = matteLook ? matte::inkDim : colours::plateText;
+        const auto filledInk = matteLook ? matte::ink : colours::nixie;
+        const auto emptyInk = matteLook ? matte::inkFaint : colours::dimText.withAlpha (0.7f);
+
+        if (matteLook)
+            matte::drawLabel (g, "PATTERN", { 2.0f, (float) height * 0.5f }, 9.0f, matte::inkFaint, juce::Justification::centredLeft);
+        else
+            drawLabel (g, "PATTERN", { 2.0f, (float) height * 0.5f }, 10.0f, colours::dimText, juce::Justification::centredLeft);
+
+        auto key = [&g, matteLook] (juce::Rectangle<float> area, bool lit, bool down)
         {
+            if (matteLook)
+            {
+                g.setColour (lit ? matte::ink : down ? juce::Colour (0xff151618) : juce::Colour (0xff222326));
+                g.fillRoundedRectangle (area.translated (0.0f, down ? 1.0f : 0.0f), 3.0f);
+                g.setColour (juce::Colours::black);
+                g.drawRoundedRectangle (area, 3.0f, 1.0f);
+                return;
+            }
+
             g.setColour (lit ? colours::plateText : down ? colours::ink.darker (0.3f) : colours::ink.brighter (0.25f));
             g.fillRoundedRectangle (area.translated (0.0f, down ? 1.0f : 0.0f), 2.0f);
             g.setColour (colours::plateText.withAlpha (0.6f));
@@ -111,8 +131,8 @@ namespace ps8::ui
             key (area, lit, pressed.key == Key::pattern && pressed.pattern == i);
 
             // number: dark on the lit key, amber for a pattern with steps in it, dim when empty
-            g.setColour (lit ? colours::ink : filled ? colours::nixie : colours::dimText.withAlpha (0.7f));
-            g.setFont (stencilFont (13.0f));
+            g.setColour (lit ? litInk : filled ? filledInk : emptyInk);
+            g.setFont (matteLook ? matte::font (11.0f, true) : stencilFont (13.0f));
             g.drawText (juce::String (i + 1), area.translated (0.0f, 0.5f), juce::Justification::centred, false);
         }
 
@@ -123,7 +143,7 @@ namespace ps8::ui
             const auto area = toolKey (k);
             const auto enabled = (k != Key::paste || shownPaste) && (k != Key::undo || shownUndo);
             key (area, k == Key::copy && copied, pressed.key == k);
-            const auto ink = k == Key::copy && copied ? colours::ink : enabled ? colours::plateText : colours::plateText.withAlpha (0.3f);
+            const auto ink = k == Key::copy && copied ? litInk : enabled ? keyInk : keyInk.withAlpha (0.3f);
 
             if (k == Key::shiftLeft || k == Key::shiftRight)
             {
@@ -142,7 +162,10 @@ namespace ps8::ui
             else
             {
                 const char* text = k == Key::copy ? "COPY" : k == Key::paste ? "PASTE" : k == Key::randomise ? "RAND" : "UNDO";
-                drawLabel (g, text, area.getCentre(), 9.5f, ink);
+                if (matteLook)
+                    matte::drawLabel (g, text, area.getCentre(), 8.5f, ink);
+                else
+                    drawLabel (g, text, area.getCentre(), 9.5f, ink);
             }
         }
     }

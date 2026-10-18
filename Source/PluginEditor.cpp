@@ -22,26 +22,39 @@ namespace
     float stepX (int step) { return firstStepX + stepPitch * (float) (step % stepsPerPage); }
 }
 
-FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
+FrontPanel::FrontPanel (PS8AudioProcessor& p, ui::Theme t) : processor (p), theme (t)
 {
+    ui::setTheme (*this, theme);
     setSize (designWidth, designHeight);
     setOpaque (true);
 
     // top bar
-    outputGauge = &make<ui::Gauge> ("OUTPUT", juce::StringArray { "-20", "0", "+3" });
-    outputGauge->setBounds (404, 22, 128, 90);
-    loadGauge = &make<ui::Gauge> ("LOAD", juce::StringArray { "0", "50", "100" });
-    loadGauge->setBounds (540, 22, 128, 90);
-
-    bpmNixie = &make<ui::Nixie> (3);
-    bpmNixie->setTopLeftPosition (694, 50);
-    stepNixie = &make<ui::Nixie> (2);
-    stepNixie->setTopLeftPosition (880, 50);
-    runLamp = &make<ui::Lamp> (juce::Colour (0xff5ff07a), juce::Colour (0xff1e4a26));
-    runLamp->setBounds (822, 63, 24, 24);
-
     programDisplay = &make<ui::ProgramDisplay> (processor);
-    programDisplay->setTopLeftPosition (194, 27);
+
+    if (theme == ui::Theme::matteBlack)
+    {
+        programDisplay->setTopLeftPosition (214, 27);
+        statusDisplay = &make<ui::StatusDisplay> (processor);
+        statusDisplay->setBounds (420, 18, 364, 96);
+        ledMeter = &make<ui::LedMeter>();
+        ledMeter->setBounds (806, 58, 140, 16);
+    }
+    else
+    {
+        programDisplay->setTopLeftPosition (194, 27);
+
+        outputGauge = &make<ui::Gauge> ("OUTPUT", juce::StringArray { "-20", "0", "+3" });
+        outputGauge->setBounds (404, 22, 128, 90);
+        loadGauge = &make<ui::Gauge> ("LOAD", juce::StringArray { "0", "50", "100" });
+        loadGauge->setBounds (540, 22, 128, 90);
+
+        bpmNixie = &make<ui::Nixie> (3);
+        bpmNixie->setTopLeftPosition (694, 50);
+        stepNixie = &make<ui::Nixie> (2);
+        stepNixie->setTopLeftPosition (880, 50);
+        runLamp = &make<ui::Lamp> (juce::Colour (0xff5ff07a), juce::Colour (0xff1e4a26));
+        runLamp->setBounds (822, 63, 24, 24);
+    }
 
     auto& scramButton = make<ui::PushButton> ("SCRAM", true);
     scramButton.place ({ 1084.0f, 68.0f }, 31.0f);
@@ -97,7 +110,8 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
 
     // output
     knob (id::volume, "VOLUME", 1130, 200, 24, false, 11, false, h);
-    clipLamp = &makeIn<ui::Lamp> (*hood, juce::Colour (0xffff4a35), juce::Colour (0xff4a1410));
+    clipLamp = &makeIn<ui::Lamp> (*hood, theme == ui::Theme::matteBlack ? ui::matte::ledRed : juce::Colour (0xffff4a35),
+                                  juce::Colour (0xff4a1410));
     clipLamp->setBounds (1116 - hatchArea.getX(), 282 - hatchArea.getY(), 28, 28);
 
     // sequencer
@@ -141,6 +155,13 @@ FrontPanel::FrontPanel (PS8AudioProcessor& p) : processor (p)
                                            juce::StringArray { "VELOCITY", "RATCHET", "CHANCE" });
     stepRowKeys->setBounds (190, (int) seqTop + 128, 74, 60);
     showStepRow (stepRowKeys->getSelected());
+
+    // attenuator knobs in the patchbay's utility block
+    for (int i = 0; i < 2; ++i)
+    {
+        const auto c = ui::Patchbay::attenuatorKnob (i);
+        knob (i == 0 ? id::att1 : id::att2, {}, c.x, c.y, 11, true);   // labelled by the patchbay
+    }
 
     // cables hang over everything else
     patchbay = &make<ui::Patchbay> (processor);
@@ -265,6 +286,23 @@ void FrontPanel::showStepRow (int row)
 
 void FrontPanel::paintModules (juce::Graphics& g) const
 {
+    if (theme == ui::Theme::matteBlack)
+    {
+        // the cover is part of the chassis: section lines instead of plates
+        ui::matte::drawChassis (g, { 6.0f, 6.0f, (float) designWidth - 12.0f, (float) designHeight - 12.0f }, 10.0f);
+
+        struct Section { float x, width; const char* title; };
+
+        for (const auto& section : { Section { 20.0f, 168.0f, "OSCILLATOR 1" }, Section { 196.0f, 168.0f, "OSCILLATOR 2" },
+                                     Section { 372.0f, 140.0f, "MODULATION" }, Section { 520.0f, 130.0f, "NOISE" },
+                                     Section { 658.0f, 190.0f, "FILTER" }, Section { 856.0f, 216.0f, "DECAY" },
+                                     Section { 1080.0f, 100.0f, "OUTPUT" } })
+            ui::matte::drawSection (g, { section.x, 138.0f, section.width, 0.0f }, section.title);
+
+        ui::matte::drawLabel (g, "CLIP", { 1130.0f, 322.0f }, 9.0f);
+        return;
+    }
+
     ui::drawPlate (g, { 20.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 1");
     ui::drawPlate (g, { 196.0f, 132.0f, 168.0f, 240.0f }, "OSCILLATOR 2");
     ui::drawPlate (g, { 372.0f, 132.0f, 140.0f, 240.0f }, "MODULATION");
@@ -276,6 +314,63 @@ void FrontPanel::paintModules (juce::Graphics& g) const
 }
 
 void FrontPanel::paint (juce::Graphics& g)
+{
+    if (theme == ui::Theme::matteBlack)
+        paintMatte (g);
+    else
+        paintControlRoom (g);
+}
+
+void FrontPanel::paintMatte (juce::Graphics& g)
+{
+    namespace matte = ui::matte;
+    const auto w = (float) designWidth, h = (float) designHeight;
+
+    g.fillAll (matte::background);
+    matte::drawChassis (g, { 6.0f, 6.0f, w - 12.0f, h - 12.0f }, 10.0f);
+
+    for (auto c : { juce::Point<float> (18.0f, 18.0f), { w - 18.0f, 18.0f }, { 18.0f, h - 18.0f }, { w - 18.0f, h - 18.0f } })
+        matte::drawScrew (g, c);
+
+    // name, the dash lit red
+    const auto nameFont = matte::font (40.0f, true).withExtraKerningFactor (-0.06f);
+    juce::AttributedString name;
+    name.append ("PS", nameFont, matte::ink);
+    name.append ("-", nameFont, matte::ledRed);
+    name.append ("8", nameFont, matte::ink);
+    name.draw (g, { 34.0f, 26.0f, 170.0f, 48.0f });
+    matte::drawLabel (g, "PERCUSSION", { 36.0f, 84.0f }, 9.0f, matte::inkDim, juce::Justification::centredLeft, false);
+    matte::drawLabel (g, "SYNTHESIZER", { 36.0f, 98.0f }, 9.0f, matte::inkDim, juce::Justification::centredLeft, false);
+
+    // level meter
+    matte::drawLabel (g, "OUTPUT", { 943.0f, 44.0f }, 9.0f, matte::inkDim, juce::Justification::centredRight);
+    matte::drawLabel (g, "-36", { 806.0f, 88.0f }, 8.0f, matte::inkFaint, juce::Justification::centredLeft, false);
+    matte::drawLabel (g, "+3 DB", { 943.0f, 88.0f }, 8.0f, matte::inkFaint, juce::Justification::centredRight, false);
+
+    // the module row is painted by the hood (see paintModules); the sequencer's title bar is a dark well
+    matte::drawSection (g, { 20.0f, seqTop, 1160.0f, 0.0f }, {});
+    const auto bar = juce::Rectangle<float> (28.0f, seqTop + 8.0f, 1144.0f, 22.0f).expanded (2.0f, 1.0f);
+    g.setColour (matte::well);
+    g.fillRoundedRectangle (bar, 4.0f);
+    g.setColour (juce::Colours::black);
+    g.drawRoundedRectangle (bar, 4.0f, 1.0f);
+
+    matte::drawLabel (g, "SEQUENCER", { 312.0f + (ui::SequencerTools::patternsEnd + ui::SequencerTools::toolsStart) * 0.5f, seqTop + 19.0f },
+                      10.0f, matte::inkFaint);
+
+    for (int i = 0; i < stepsPerPage; ++i)
+        matte::drawLabel (g, juce::String (shownPage * stepsPerPage + i + 1), { stepX (i), seqTop + 46.0f }, 11.0f, matte::inkFaint);
+
+    matte::drawLabel (g, "PITCH", { 230.0f, seqTop + 84.0f }, 9.5f, matte::ink, juce::Justification::centredRight);
+    matte::drawLabel (g, "STEP", { 230.0f, seqTop + 222.0f }, 9.5f, matte::ink, juce::Justification::centredRight);
+
+    ui::Patchbay::paintPanel (g, w, theme);
+
+    matte::drawLabel (g, "UNIT 08", { 34.0f, h - 24.0f }, 8.5f, matte::inkFaint, juce::Justification::centredLeft);
+    matte::drawLabel (g, "ANALOG PERCUSSION", { w - 34.0f, h - 24.0f }, 8.5f, matte::inkFaint, juce::Justification::centredRight);
+}
+
+void FrontPanel::paintControlRoom (juce::Graphics& g)
 {
     g.fillAll (colours::frame);
     g.setColour (colours::panel);
@@ -327,7 +422,7 @@ void FrontPanel::paint (juce::Graphics& g)
     ui::drawLabel (g, "PITCH", { 230.0f, seqTop + 84.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
     ui::drawLabel (g, "STEP ON", { 230.0f, seqTop + 222.0f }, 11.0f, colours::ink, juce::Justification::centredRight);
 
-    ui::Patchbay::paintPanel (g, (float) designWidth);
+    ui::Patchbay::paintPanel (g, (float) designWidth, theme);
 }
 
 void FrontPanel::scram()
@@ -350,6 +445,10 @@ void FrontPanel::timerCallback()
     auto& display = processor.getDisplay();
     patchbay->update();
     programDisplay->update();
+
+    if (statusDisplay != nullptr)
+        statusDisplay->update();
+
     sequencerTools->update();
     board->update();
 
@@ -374,9 +473,12 @@ void FrontPanel::timerCallback()
     for (int i = 0; i < ps8::seq::maxSteps; ++i)
         stepColumns[(size_t) i].lamp->setState (i == step, alarm, i < length);
 
-    stepNixie->setText (step >= 0 ? juce::String (step + 1) : juce::String());
-    bpmNixie->setText (juce::String (juce::roundToInt (display.bpm.load())));
-    runLamp->setOn (display.running.load());
+    if (stepNixie != nullptr)
+    {
+        stepNixie->setText (step >= 0 ? juce::String (step + 1) : juce::String());
+        bpmNixie->setText (juce::String (juce::roundToInt (display.bpm.load())));
+        runLamp->setOn (display.running.load());
+    }
 
     pageTabs->setPlayingPage (step < 0 ? -1 : step / stepsPerPage);
 
@@ -386,22 +488,34 @@ void FrontPanel::timerCallback()
     const auto target = db <= 0.0f ? juce::jlimit (0.0f, 0.5f, 0.5f * (db + 20.0f) / 20.0f)
                                    : juce::jmin (1.0f, 0.5f + 0.5f * db / 3.0f);
     outputNeedle += (target - outputNeedle) * (target > outputNeedle ? 0.6f : 0.12f);
-    outputGauge->setValue (outputNeedle);
 
     if (peak > 0.99f)
         clipUntil = now + 400.0;
 
     clipLamp->setOn (now < clipUntil);
 
-    loadNeedle += ((float) processor.getCpuLoad() - loadNeedle) * 0.2f;
-    loadGauge->setValue (loadNeedle);
+    if (outputGauge != nullptr)
+    {
+        outputGauge->setValue (outputNeedle);
+        loadNeedle += ((float) processor.getCpuLoad() - loadNeedle) * 0.2f;
+        loadGauge->setValue (loadNeedle);
+    }
+
+    // LED meter: -36 dB … 0 dB, the two red segments above
+    if (ledMeter != nullptr)
+    {
+        const auto level = juce::jlimit (0.0f, 1.0f, (db + 36.0f) / 39.0f);
+        meterLevel = level > meterLevel ? level : meterLevel + (level - meterLevel) * 0.15f;
+        ledMeter->setLevel (meterLevel, now < clipUntil);
+    }
 }
 
 //==============================================================================
 PS8AudioProcessorEditor::PS8AudioProcessorEditor (PS8AudioProcessor& p)
-    : AudioProcessorEditor (&p), panel (p)
+    : AudioProcessorEditor (&p), processor (p)
 {
-    addAndMakeVisible (panel);
+    buildPanel();
+    settings->addChangeListener (this);
 
     setResizable (true, true);
     getConstrainer()->setFixedAspectRatio ((double) FrontPanel::designWidth / FrontPanel::designHeight);
@@ -414,9 +528,36 @@ PS8AudioProcessorEditor::PS8AudioProcessorEditor (PS8AudioProcessor& p)
     sizeRestored = true;
 }
 
+PS8AudioProcessorEditor::~PS8AudioProcessorEditor()
+{
+    settings->removeChangeListener (this);
+}
+
+void PS8AudioProcessorEditor::buildPanel()
+{
+    theme = ui::themeFromId (settings->getThemeId());
+    ui::setTheme (*this, theme);   // for parts outside the panel (value bubbles)
+
+    if (panel != nullptr)
+        removeChildComponent (panel.get());
+
+    panel = std::make_unique<FrontPanel> (processor, theme);
+    addAndMakeVisible (*panel, 0);   // behind the resize corner
+    resized();
+}
+
+void PS8AudioProcessorEditor::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    if (ui::themeFromId (settings->getThemeId()) != theme)
+        buildPanel();
+}
+
 void PS8AudioProcessorEditor::resized()
 {
-    panel.setTransform (juce::AffineTransform::scale ((float) getWidth() / (float) FrontPanel::designWidth));
+    if (panel == nullptr)
+        return;
+
+    panel->setTransform (juce::AffineTransform::scale ((float) getWidth() / (float) FrontPanel::designWidth));
 
     if (sizeRestored)
         settings->setEditorWidth (getWidth());

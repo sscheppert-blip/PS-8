@@ -48,8 +48,8 @@ Doppelklick auf einen Regler setzt ihn zurück. Beim Drehen zeigt eine kleine An
 
 ## Unter der Haube (Extras – ab Werk aus)
 
-Schlüssel **SERVICE** drehen (oben rechts) oder auf eine Schraube an den Ecken der Modulreihe klicken:
-die Haube klappt hoch, darunter liegt die Service-Platine mit blauen Trimmpotis. Zuklappen genauso.
+**SERVICE** drücken (oben rechts) oder auf eine Schraube an den Ecken der Modulreihe klicken:
+die Haube klappt hoch, darunter liegt die Service-Platine mit Trimmpotis. Zuklappen genauso.
 
 | Element | Funktion |
 |---|---|
@@ -84,7 +84,8 @@ Oben im Typenschild: **◀ ▶** blättert durch die Presets (Init, Werks-Preset
 kann umbenennen, löschen und den Ordner öffnen. Ein `*` hinter dem Namen = geändert. Deine Presets liegen
 unter `%APPDATA%\PS-8\Presets` (Windows), `~/Library/Application Support/PS-8/Presets` (Mac) bzw.
 `~/.config/PS-8/Presets` (Linux). Neue Instanzen starten immer mit Init; die Fenstergröße merkt sich
-PS-8. Mehr: [Handbuch, Kapitel 8](Handbuch.md#8-presets).
+PS-8. Unter **MENU → Look** wechselst du zwischen **Matte Black** (ab Werk) und **Control Room** – gilt für
+alle Fenster, Klang und Presets bleiben gleich. Mehr: [Handbuch, Kapitel 8](Handbuch.md#8-presets).
 
 ## Patchbay
 
@@ -98,4 +99,6 @@ Unten leitest du Signale per Kabel um. Ohne Kabel bleibt alles wie ab Werk.
 
 Ausgänge haben ein schwarzes Feld. Zum Ausprobieren: **VCA EG → TEMPO** (Wirbel), **VCO 2 → VCF MOD**
 (Knurren), **VELOCITY → VCA CV** (Drone), **TRIG → VCO RST** (jeder Schlag klingt gleich – die VCOs
-laufen sonst frei wie beim analogen Original). Alle Buchsen und mehr Ideen: [Handbuch, Kapitel 7](Handbuch.md#7-patchbay).
+laufen sonst frei wie beim analogen Original). Rechts im Block **UTILITY** sitzen zwei Abschwächer (ATT 1/2:
+IN → Regler → OUT, links vom Regler umgepolt) – damit wird jedes Kabel feinfühlig. Dazu gibt es **LFO** als
+Ausgang und **VCF CV** als direkten Cutoff-Eingang. Alle Buchsen und mehr Ideen: [Handbuch, Kapitel 7](Handbuch.md#7-patchbay).

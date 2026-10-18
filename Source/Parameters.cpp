@@ -183,6 +183,8 @@ namespace ps8::params
             juce::StringArray { "Triangle", "Square", "Saw", "Ramp", "Sample & Hold" }, 0));
         addUnit (layout, id::lfoDepth, "LFO Depth", 0.0f);
         addUnit (layout, id::analog, "Analog", 0.0f);
+        addBipolar (layout, id::att1, "Attenuator 1", 1.0f);
+        addBipolar (layout, id::att2, "Attenuator 2", 1.0f);
         layout.add (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { id::lfoTarget, 1 }, "LFO Target",
             juce::StringArray { "Pitch", "VCO 2", "Cutoff", "FM", "Volume" }, 2));

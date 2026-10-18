@@ -134,16 +134,31 @@ the **EG AMOUNT** knobs.
 
 ## 4. The front panel
 
+### Two looks
+
+PS-8 comes in two looks: **Matte Black** (the default – matte knobs with value rings, rubber keys with
+LEDs, an OLED display) and **Control Room** (green panel, bakelite knobs, lever switches, needle meters
+and nixie tubes). Switch in **MENU → Look**. The choice applies to every PS-8 window and is remembered;
+sound, presets, cables and the layout are the same in both.
+
+![PS-8 in the Control Room look](images/panel-control-room.png)
+
+In Matte Black a switch is a key: each click steps to the next setting, the key shows the current one
+and its LED is off for OFF/STOP. The top bar differs as well:
+
+| Matte Black | Control Room | Shows |
+|---|---|---|
+| OLED display | TEMPO BPM, STEP (nixies), RUN lamp | Pattern, INT/HOST, tempo, the preset – or for a moment the control you just touched with its value – the step and a bar of the sequence (lit = step on, white = playing) |
+| OUTPUT (LED row) | OUTPUT (needle) | Output level, −36 … +3 dB (LEDs) or −20 … +3 dB (needle); the red LEDs are above 0 dB |
+| – | LOAD (needle) | CPU load |
+
 ### Top bar
 
 | Control | Function |
 |---|---|
 | **PROGRAM** | Preset name, ◀ ▶ to step through the presets, SAVE, MENU – see [8. Presets](#8-presets) |
-| **OUTPUT** (meter) | Output level: left −20 dB, centre 0 dB, right +3 dB |
-| **LOAD** (meter) | CPU load of the plugin in percent |
-| **TEMPO BPM** (nixies) | Current tempo – PS-8's own or the DAW's |
-| **RUN** (green lamp) | Lit while the sequencer runs |
-| **STEP** (nixies) | Last step played |
+| **Display** / **TEMPO BPM**, **RUN**, **STEP** | Tempo (PS-8's own or the DAW's), whether the sequencer runs, last step played – see [Two looks](#two-looks) |
+| **OUTPUT** | Output level – see [Two looks](#two-looks) |
 | **SCRAM** | Emergency stop: the sequencer stops (RUN switches off), the sound is cut at once, the step lamps flash red briefly |
 | **SERVICE** (key) | Opens and closes the cover over the module row – see [6. Under the hood](#6-under-the-hood-the-service-board) |
 
@@ -277,13 +292,13 @@ The module row only carries what belongs to the original instrument. The sound e
 board under it – like the service hatch of a control room. Everything you need while playing the
 sequencer (rate, length, ratchet, chance) stays on the front.
 
-- **Open:** turn the **SERVICE** key (top right, next to SCRAM) or click one of the four screws at the
+- **Open:** press **SERVICE** (top right, next to SCRAM; in Control Room a key switch) or click one of the four screws at the
   corners of the module row. The screws turn out and the cover flips up.
-- **Close:** turn the key back or click one of the four screw holes on the board.
+- **Close:** press SERVICE again or click one of the four screw holes on the board.
 - The hatch stays open or closed with your project. Presets don't change it.
 
-By default everything here is neutral: no scale, no glide, no swing, LFO depth 0, ANALOG 0 %. The blue trimmers
-work like the knobs (drag, double-click resets); a small display under each one shows its value.
+By default everything here is neutral: no scale, no glide, no swing, LFO depth 0, ANALOG 0 %. The trimmers
+(blue on the green board, silver on the black one) work like the knobs (drag, double-click resets); a small display under each one shows its value.
 
 ### SEQ OPTIONS
 
@@ -342,7 +357,7 @@ the project and presets, but they cannot be automated.
 5 V pulse of 5 ms. TRIG, RUN, ADV/CLK and RESET switch at 2.5 V. At inputs that add to a knob, 5 V
 covers the knob's whole range.
 
-### Outputs (black)
+### Outputs (black square / raised plate with white labels)
 
 | Jack | Signal |
 |---|---|
@@ -354,6 +369,7 @@ covers the knob's whole range.
 | **VELOCITY** | Velocity of the current step |
 | **PITCH** | Pitch of the current step, 1 V per octave |
 | **VCA** | The finished sound after the VCA, before VOLUME |
+| **LFO** *(extra)* | The LFO (service board) at full swing, ±5 V – its RATE, SHAPE and SYNC apply, DEPTH and TARGET don't. Patch it anywhere |
 
 ### Inputs
 
@@ -361,6 +377,7 @@ covers the knob's whole range.
 |---|---|---|
 | **VCO 1 CV**, **VCO 2 CV** | Pitch, 1 V per octave. PITCH into VCO 1 CV moves VCO 1 by exactly the step pitch | – |
 | **VCO RST** *(extra)* | A rising edge restarts both VCOs at the same point of the wave. TRIG → VCO RST makes every hit sound the same | Free-running VCOs |
+| **VCF CV** *(extra)* | Cutoff, 1 V per octave, straight in. PITCH into VCF CV makes the filter follow the melody exactly | – |
 | **1>2 FM** | Adds to FM 1>2 AMOUNT | – |
 | **VCO DEC** | Adds to the PITCH decay | – |
 | **NOISE** | Adds to the noise LEVEL | – |
@@ -380,6 +397,13 @@ covers the knob's whole range.
 routing. While it is active and no cable is in EXT IN, its audio takes the place of the noise – it
 runs through the filter, the VCA and the envelopes like the noise would.
 
+### Utility (extra)
+
+Two attenuators, **ATT 1** and **ATT 2**: what goes into **IN** comes out of **OUT** scaled by the knob –
+fully right = unchanged (the default), centre = nothing, left = inverted. With no cable in IN, OUT gives a
+set voltage (+5 V times the knob), handy as a manual offset or gate. They make every cable gentle:
+VCA EG → ATT 1 IN, ATT 1 OUT → TEMPO, and the knob sets how much the hits speed up the clock.
+
 ### Patch ideas
 
 - **Rolls:** VCA EG → TEMPO. Each hit speeds up the clock for a moment – bursts and rolls that follow
@@ -391,6 +415,12 @@ runs through the filter, the VCA and the envelopes like the noise would.
 - **Accents shape the tone:** VELOCITY → VCF DEC. Loud steps get a longer filter sweep.
 - **Feedback:** VCA → EXT IN, noise LEVEL carefully up. The sound feeds back into itself – gritty and
   unstable.
+- **Gentle rolls:** VCA EG → ATT 1 IN, ATT 1 OUT → TEMPO, ATT 1 at about 10 o'clock. Turn it left of
+  centre and loud hits slow the clock down instead.
+- **LFO anywhere:** LFO → VCA DEC (breathing lengths), LFO → VCO 2 CV through ATT 2 (a gentle vibrato),
+  LFO with SYNC on as a square → RUN (the sequence plays every other bar).
+- **Filter as second voice:** VCO and noise levels down, RESONANCE fully right, PITCH → VCF CV – the
+  filter whistles the step melody in tune.
 - **Identical hits:** TRIG → VCO RST. Every kick starts with the same click and punch, like a classic
   drum machine. (Deep Kick and Tom Melody come patched like this.)
 - **VCO as clock:** VCO 1 FREQUENCY fully left, VCO 1 → ADV/CLK, VCO 1 LEVEL down. VCO 1 now clocks
@@ -408,7 +438,7 @@ preset.
 |---|---|
 | **◀ ▶** | Previous / next preset: Init, then the factory presets, then your own (wraps around) |
 | **SAVE** | Save the current sound as your own preset. If the name exists already, PS-8 asks before overwriting |
-| **MENU** or a click on the name | All presets at a glance, plus **Save as…**, **Rename…**, **Delete** and **Open preset folder** |
+| **MENU** or a click on the name | All presets at a glance, plus **Save as…**, **Rename…**, **Delete**, **Open preset folder** and **Look** (the panel's look, see [Two looks](#two-looks)) |
 
 **What a preset contains:** all knobs and switches, all eight step patterns (pitch, velocity, on/off,
 ratchet, chance, length) and which one plays, rate, scale, root, glide, swing, the LFO and the patch
@@ -602,7 +632,7 @@ The "Steps 1-8 / 9-16" view, the VELOCITY / RATCHET / CHANCE choice, the open/cl
 | Latency | a few samples (reported to the DAW) |
 | Output | mono signal on a stereo output |
 | Input | optional side-chain (mono or stereo) for EXT IN |
-| Patchbay | 17 inputs, 9 outputs |
+| Patchbay | 20 inputs, 12 outputs, 2 attenuators |
 | Filter | 4-pole ladder, low and high pass, self-oscillating |
 | CPU | below 1 % of one core (measured on a current Mac) |
 

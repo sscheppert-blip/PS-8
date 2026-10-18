@@ -36,6 +36,7 @@ namespace ps8::dsp
         LfoShape lfoShape = LfoShape::triangle;
         LfoTarget lfoTarget = LfoTarget::cutoff;
         float analog = 0.0f;   // 0..1: component tolerances, thermal drift, hit-to-hit variation
+        float att1 = 1.0f, att2 = 1.0f;   // patchbay attenuators, -1..1
     };
 
     // Component tolerances of one "unit" (as in MB-11): every instance behaves like its own piece of

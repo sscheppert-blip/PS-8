@@ -28,11 +28,13 @@ The test runner also writes a demo pattern (`--render demo.wav`; add a factory p
 single hit of step 1 instead of the sequence, and `paramId=value` overrides, e.g.
 `--render kick.wav "Deep Kick" hit cutoff=0.3`; a hit plays after 0.2 s of silence so the parameter
 smoothing has settled), a panel screenshot
-(`--snapshot panel.png`, add `patched` for a few demo cables and/or `service` for the open service hatch),
+(`--snapshot panel.png`, add `patched` for a few demo cables, `service` for the open service hatch and/or
+`control` for the Control Room look instead of Matte Black),
 frames of the hatch animation (`--hatch-frames <folder>`), the app icon (`--icon design/icon.png`,
 1024 px, used for the Standalone app) and measures the CPU load (`--bench`).
 
-Manual images: `docs/images/panel.png` (`--snapshot … patched`) and `docs/images/service.png`
+Manual images: `docs/images/panel.png` (`--snapshot … patched`), `docs/images/panel-control-room.png`
+(`--snapshot … patched control`) and `docs/images/service.png`
 (`--snapshot … patched service`), both downscaled to 1400 px.
 
 The tests play every factory preset for 3 s and check that it sounds without clipping; with the

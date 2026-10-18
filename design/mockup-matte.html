@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS-8 Matte Black mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --chassis-top: #1b1c1e;
+    --chassis-bottom: #0f1011;
+    --ink: #e9e7e2;
+    --ink-dim: #8d8b87;
+    --ink-faint: #55534f;
+    --line: #2a2b2d;
+    --led-red: #ff3b2f;
+    --led-amber: #ffb340;
+    --led-white: #f4f1ea;
+    --oled: #9fd7ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(1200px 700px at 50% 30%, #2a2b2e 0%, #121214 55%, #070708 100%);
+    font-family: Inter, system-ui, sans-serif; color: var(--ink); padding: 40px 16px;
+  }
+
+  /* chassis: matte black aluminium with a soft sheen */
+  .unit {
+    position: relative; width: 1180px; padding: 26px 30px 30px; border-radius: 14px;
+    background:
+      linear-gradient(115deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.0) 22%, rgba(255,255,255,0.0) 62%, rgba(255,255,255,0.03) 78%, rgba(255,255,255,0.0) 100%),
+      linear-gradient(180deg, var(--chassis-top), var(--chassis-bottom));
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.10) inset,
+      0 -1px 0 rgba(0,0,0,0.6) inset,
+      0 0 0 1px #050506,
+      0 40px 80px rgba(0,0,0,0.65),
+      0 12px 24px rgba(0,0,0,0.5);
+  }
+  .unit::before { /* fine matte grain */
+    content: ""; position: absolute; inset: 0; border-radius: 14px; pointer-events: none; opacity: 0.18;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+  }
+  .screw { position: absolute; width: 9px; height: 9px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #4a4b4e, #1a1a1c 70%); box-shadow: 0 0 0 1px #000 inset; }
+
+  .label { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); font-weight: 500; }
+  .label.bright { color: var(--ink); }
+  .section-title { font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+    border-top: 1px solid var(--line); padding-top: 7px; margin-bottom: 12px; }
+
+  /* top row */
+  .top { display: grid; grid-template-columns: 250px 1fr 250px; gap: 26px; align-items: stretch; margin-bottom: 22px; }
+  .brand { display: flex; flex-direction: column; justify-content: space-between; padding-top: 4px; }
+  .brand .name { font-size: 34px; font-weight: 600; letter-spacing: 0.06em; }
+  .brand .name span { color: var(--led-red); }
+  .brand .sub { font-size: 10px; letter-spacing: 0.32em; color: var(--ink-dim); text-transform: uppercase; }
+
+  .screen-bezel { background: #050506; border-radius: 8px; padding: 10px; box-shadow: 0 0 0 1px #2c2d30 inset, 0 1px 0 rgba(255,255,255,0.06); }
+  .screen { height: 128px; border-radius: 4px; background: #020304; position: relative; overflow: hidden;
+    font-family: "JetBrains Mono", monospace; color: var(--oled); padding: 10px 14px; }
+  .screen::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 40%); pointer-events: none; }
+  .screen .row { display: flex; justify-content: space-between; font-size: 11px; opacity: 0.85; }
+  .screen .big { font-size: 26px; letter-spacing: 0.04em; margin: 6px 0 4px; color: #d9f0ff; }
+  .screen .bar { display: flex; gap: 3px; margin-top: 8px; }
+  .screen .bar i { flex: 1; height: 8px; border: 1px solid rgba(159,215,255,0.5); border-radius: 1px; }
+  .screen .bar i.on { background: var(--oled); }
+  .screen .bar i.play { background: #fff; box-shadow: 0 0 6px #fff; }
+
+  .meters { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; }
+  .ledbar { display: flex; gap: 3px; }
+  .ledbar i { width: 7px; height: 16px; border-radius: 1.5px; background: #1e1f21; box-shadow: 0 0 0 1px #000 inset; }
+  .ledbar i.g { background: #e9e7e2; box-shadow: 0 0 6px rgba(255,255,255,0.4); }
+  .ledbar i.r { background: var(--led-red); box-shadow: 0 0 6px var(--led-red); }
+
+  /* knobs */
+  .grid { display: grid; gap: 18px; }
+  .knob-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .knob { position: relative; border-radius: 50%;
+    background: radial-gradient(circle at 50% 30%, #3a3b3e 0%, #1c1d1f 45%, #0c0c0d 100%);
+    box-shadow: 0 0 0 1px #000, 0 4px 8px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.12) inset; }
+  .knob::before { /* matte top face with a faint reflection */
+    content: ""; position: absolute; inset: 14%; border-radius: 50%;
+    background: radial-gradient(circle at 40% 30%, #2f3033, #151617 70%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 -1px 2px rgba(0,0,0,0.6) inset; }
+  .knob .ptr { position: absolute; left: 50%; top: 9%; width: 2px; height: 32%; margin-left: -1px; border-radius: 1px; background: var(--led-white); transform-origin: 50% 128%; }
+  .knob.k-lg { width: 54px; height: 54px; }
+  .knob.k-md { width: 42px; height: 42px; }
+  .knob.k-sm { width: 32px; height: 32px; }
+  .ring { position: absolute; inset: -7px; border-radius: 50%; pointer-events: none; }
+
+  /* rubber keys */
+  .key { position: relative; border-radius: 4px; background: linear-gradient(180deg, #2a2b2e, #1a1b1d);
+    box-shadow: 0 0 0 1px #000, 0 3px 0 #0a0a0b, 0 4px 8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.08) inset;
+    display: flex; align-items: center; justify-content: center; }
+  .key .led { position: absolute; top: 6px; left: 50%; width: 14px; height: 3px; margin-left: -7px; border-radius: 2px; background: #2a1312; }
+  .key .led.on { background: var(--led-red); box-shadow: 0 0 8px var(--led-red); }
+  .key .led.amber { background: var(--led-amber); box-shadow: 0 0 8px var(--led-amber); }
+  .key .led.white { background: var(--led-white); box-shadow: 0 0 8px rgba(255,255,255,0.7); }
+  .key .txt { font-size: 9px; letter-spacing: 0.14em; color: var(--ink-dim); font-weight: 600; margin-top: 8px; }
+
+  .modules { display: grid; grid-template-columns: 1.15fr 1.15fr 0.9fr 0.9fr 1.15fr 1.3fr 0.6fr; gap: 22px; margin-bottom: 26px; }
+  .switch-row { display: flex; gap: 8px; justify-content: center; margin-top: 2px; }
+  .mini { width: 46px; height: 24px; }
+
+  .seq { display: grid; grid-template-columns: 190px 1fr; gap: 26px; margin-bottom: 24px; }
+  .transport { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; }
+  .transport .key { height: 44px; }
+  .steps { display: grid; grid-template-columns: 92px repeat(8, 1fr); gap: 14px; }
+  .rowlabels { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+  .rowlabels .top { height: 42px; display: flex; align-items: center; }
+  .rowlabels .modes { height: 40px; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+  .mode { display: flex; align-items: center; gap: 6px; font-size: 8.5px; letter-spacing: 0.14em; color: var(--ink-faint); font-weight: 600; cursor: default; }
+  .mode i { width: 5px; height: 5px; border-radius: 50%; background: #2a1312; }
+  .mode.on { color: var(--ink); }
+  .mode.on i { background: var(--led-red); box-shadow: 0 0 6px var(--led-red); }
+  .stepkeys { display: grid; grid-template-columns: repeat(16, 1fr); gap: 8px; margin-top: 16px; margin-left: 106px; }
+  .mode { cursor: pointer; }
+  .stepkeys .key { height: 40px; }
+  .stepkeys .key .num { font-size: 9px; color: var(--ink-faint); margin-top: 10px; font-weight: 600; }
+
+  .patchbay { display: grid; grid-template-columns: 10fr 5.6fr 3.2fr; gap: 18px; align-items: stretch; }
+  .block { border-radius: 6px; padding: 10px 10px 12px; }
+  .block .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .block .head .label { font-size: 9px; letter-spacing: 0.24em; }
+  .block .head .arrow { font-size: 12px; color: var(--ink-dim); }
+  .block.in { background: rgba(0,0,0,0.25); box-shadow: 0 0 0 1px #000 inset; }
+  .block.out { background: linear-gradient(180deg, #2b2c2f, #222326); box-shadow: 0 0 0 1px #000 inset, 0 1px 0 rgba(255,255,255,0.06) inset; }
+  .block.util { background: rgba(0,0,0,0.25); box-shadow: 0 0 0 1px #000 inset; }
+  .patch { display: grid; gap: 12px 4px; }
+  .block.out .jack-cell .label { background: var(--ink); color: #111; padding: 1px 4px; border-radius: 2px; }
+  .util-row { display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: end; justify-items: center; gap: 4px; }
+  .util-row + .util-row { margin-top: 12px; }
+  .jack-cell { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .jack { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle, #000 0 34%, #2c2d30 36%, #4b4c50 52%, #1a1b1d 70%);
+    box-shadow: 0 0 0 1px #000, 0 1px 0 rgba(255,255,255,0.12); }
+  .jack.out { box-shadow: 0 0 0 1px #000, 0 0 0 4px #2a2b2e, 0 0 0 5px #000; }
+  .jack-cell .label { font-size: 8px; letter-spacing: 0.08em; white-space: nowrap; }
+
+  .foot { display: flex; justify-content: space-between; margin-top: 18px; }
+  .foot .label { font-size: 8.5px; color: var(--ink-faint); }
+  .unit { margin: 0 auto; }
+  .note { width: 1180px; margin: 14px auto 0; font-size: 11px; color: #6c6a66; letter-spacing: 0.04em; }
+</style>
+</head>
+<body>
+<div class="unit">
+  <div class="screw" style="left:10px;top:10px"></div><div class="screw" style="right:10px;top:10px"></div>
+  <div class="screw" style="left:10px;bottom:10px"></div><div class="screw" style="right:10px;bottom:10px"></div>
+
+  <!-- top: name, display, level -->
+  <div class="top">
+    <div class="brand">
+      <div class="name">PS<span>-</span>8</div>
+      <div class="sub">Percussion synthesizer</div>
+      <div style="display:flex; gap:10px; margin-top:14px">
+        <div class="key mini"><span class="txt" style="margin-top:0">PROG</span></div>
+        <div class="key mini"><span class="txt" style="margin-top:0">SAVE</span></div>
+        <div class="key mini"><span class="txt" style="margin-top:0">PATT</span></div>
+        <div class="key mini"><span class="txt" style="margin-top:0">FUNC</span></div>
+      </div>
+    </div>
+    <div class="screen-bezel">
+      <div class="screen">
+        <div class="row"><span>KICK / 01</span><span>PATTERN 1</span><span>120.0 BPM</span></div>
+        <div class="big">DEEP KICK</div>
+        <div class="row"><span>VCO1 64.0Hz</span><span>EG +77%</span><span>DEC 173ms</span><span>VCF 905Hz</span></div>
+        <div class="bar" id="bar"></div>
+      </div>
+    </div>
+    <div class="meters">
+      <div style="text-align:right">
+        <div class="label" style="margin-bottom:6px">Output</div>
+        <div class="ledbar" id="meter"></div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center">
+        <div class="knob-cell"><div class="knob k-lg" data-a="40"></div><div class="label">Volume</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-120"></div><div class="label">Tempo</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- sound modules -->
+  <div class="modules">
+    <div><div class="section-title">Oscillator 1</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="knob-cell"><div class="knob k-lg" data-a="-60"></div><div class="label bright">Freq</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="50"></div><div class="label">EG amt</div></div>
+        <div class="knob-cell"><div class="key mini"><span class="led white" style="top:4px"></span><span class="txt">TRI</span></div><div class="label">Wave</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="100"></div><div class="label">Level</div></div>
+      </div></div>
+    <div><div class="section-title">Oscillator 2</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="knob-cell"><div class="knob k-lg" data-a="-10"></div><div class="label bright">Freq</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="30"></div><div class="label">EG amt</div></div>
+        <div class="knob-cell"><div class="key mini"><span class="led on" style="top:4px"></span><span class="txt">SQR</span></div><div class="label">Wave</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-50"></div><div class="label">Level</div></div>
+      </div></div>
+    <div><div class="section-title">Modulation</div>
+      <div class="grid" style="grid-template-columns:1fr">
+        <div class="knob-cell"><div class="knob k-lg" data-a="-130"></div><div class="label bright">FM 1>2</div></div>
+        <div class="switch-row">
+          <div class="key mini"><span class="led on" style="top:4px"></span><span class="txt">FM</span></div>
+          <div class="key mini"><span class="led" style="top:4px"></span><span class="txt">SYNC</span></div>
+        </div>
+      </div></div>
+    <div><div class="section-title">Noise</div>
+      <div class="grid" style="grid-template-columns:1fr">
+        <div class="knob-cell"><div class="knob k-lg" data-a="-100"></div><div class="label bright">Level</div></div>
+        <div class="switch-row">
+          <div class="key mini"><span class="led white" style="top:4px"></span><span class="txt">WHT</span></div>
+          <div class="knob-cell"><div class="knob k-sm" data-a="-135"></div></div>
+        </div>
+      </div></div>
+    <div><div class="section-title">Filter</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="knob-cell"><div class="knob k-lg" data-a="15"></div><div class="label bright">Cutoff</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-60"></div><div class="label">Reso</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="35"></div><div class="label">EG amt</div></div>
+        <div class="knob-cell"><div class="key mini"><span class="led white" style="top:4px"></span><span class="txt">LP</span></div><div class="label">Mode</div></div>
+      </div></div>
+    <div><div class="section-title">Decay</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="knob-cell"><div class="knob k-md" data-a="-60"></div><div class="label">Pitch</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-30"></div><div class="label">Filter</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="0"></div><div class="label bright">VCA</div></div>
+        <div class="knob-cell"><div class="key mini"><span class="led" style="top:4px"></span><span class="txt">SLOW</span></div><div class="label">Attack</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-120"></div><div class="label">Drive</div></div>
+        <div class="knob-cell"><div class="knob k-md" data-a="-135"></div><div class="label">Analog</div></div>
+      </div></div>
+    <div><div class="section-title">Out</div>
+      <div class="grid" style="grid-template-columns:1fr; justify-items:center; gap:14px">
+        <div class="key" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(180deg,#3a1513,#1e0b0a)">
+          <span class="txt" style="margin-top:0;color:#ff6a5f">SCRAM</span></div>
+        <div class="label">Panic</div>
+      </div></div>
+  </div>
+
+  <!-- sequencer -->
+  <div class="section-title">Sequencer</div>
+  <div class="seq">
+    <div class="transport">
+      <div class="key"><span class="led on"></span><span class="txt">PLAY</span></div>
+      <div class="key"><span class="led"></span><span class="txt">STOP</span></div>
+      <div class="key"><span class="led amber"></span><span class="txt">HOST</span></div>
+      <div class="key"><span class="led"></span><span class="txt">TRIG</span></div>
+      <div class="key"><span class="led"></span><span class="txt">ADV</span></div>
+      <div class="key"><span class="led"></span><span class="txt">RESET</span></div>
+      <div class="key"><span class="led"></span><span class="txt">COPY</span></div>
+      <div class="key"><span class="led"></span><span class="txt">PASTE</span></div>
+      <div class="key"><span class="led"></span><span class="txt">RAND</span></div>
+    </div>
+    <div>
+      <div class="steps" id="steps"></div>
+      <div class="stepkeys" id="stepkeys"></div>
+    </div>
+  </div>
+
+  <!-- patchbay: inputs, outputs (inverted labels on a raised plate), utility -->
+  <div class="section-title">Patch</div>
+  <div class="patchbay">
+    <div class="block in">
+      <div class="head"><span class="arrow">&#8595;</span><span class="label bright">Inputs</span></div>
+      <div class="patch" id="patch-in" style="grid-template-columns: repeat(10, 1fr)"></div>
+    </div>
+    <div class="block out">
+      <div class="head"><span class="arrow" style="color:var(--ink)">&#8593;</span><span class="label bright">Outputs</span></div>
+      <div class="patch" id="patch-out" style="grid-template-columns: repeat(5, 1fr)"></div>
+    </div>
+    <div class="block util">
+      <div class="head"><span class="label bright">Utility</span></div>
+      <div class="util-row">
+        <div class="jack-cell"><div class="label">IN</div><div class="jack"></div></div>
+        <div class="knob-cell"><div class="label">ATT 1</div><div class="knob k-sm" data-a="135"></div></div>
+        <div class="jack-cell"><div class="label" style="background:var(--ink);color:#111;padding:1px 4px;border-radius:2px">OUT</div><div class="jack out"></div></div>
+      </div>
+      <div class="util-row">
+        <div class="jack-cell"><div class="label">IN</div><div class="jack"></div></div>
+        <div class="knob-cell"><div class="label">ATT 2</div><div class="knob k-sm" data-a="40"></div></div>
+        <div class="jack-cell"><div class="label" style="background:var(--ink);color:#111;padding:1px 4px;border-radius:2px">OUT</div><div class="jack out"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="label">Unit 08</div>
+    <div class="label">Mockup – matte black</div>
+  </div>
+</div>
+<div class="note">Mockup only – not the plugin</div>
+
+<script>
+  // knob pointers: data-a = angle in degrees (-135 … +135) plus a thin value ring
+  document.querySelectorAll('.knob').forEach(k => {
+    const a = parseFloat(k.dataset.a || 0);
+    const p = document.createElement('div'); p.className = 'ptr'; p.style.transform = `rotate(${a}deg)`; k.appendChild(p);
+    const ring = document.createElement('div'); ring.className = 'ring';
+    const frac = (a + 135) / 270;
+    ring.style.background = `conic-gradient(from -135deg, rgba(233,231,226,0.55) 0 ${frac * 270}deg, rgba(255,255,255,0.06) ${frac * 270}deg 270deg, transparent 270deg)`;
+    ring.style.webkitMask = ring.style.mask = 'radial-gradient(circle, transparent 0 calc(50% - 2px), #000 calc(50% - 1.5px) 50%, transparent calc(50% + 0.5px))';
+    k.appendChild(ring);
+  });
+
+  // display step bar, level meter
+  const bar = document.getElementById('bar');
+  for (let i = 0; i < 16; i++) { const s = document.createElement('i'); if (i < 8) s.className = i === 4 ? 'play' : 'on'; bar.appendChild(s); }
+  const meter = document.getElementById('meter');
+  for (let i = 0; i < 14; i++) { const s = document.createElement('i'); if (i < 9) s.className = 'g'; if (i === 12) s.className = 'r'; meter.appendChild(s); }
+
+  // eight columns: pitch and velocity knobs
+  const steps = document.getElementById('steps');
+  steps.insertAdjacentHTML('beforeend', `<div class="rowlabels">
+      <div class="top label bright">Pitch</div>
+      <div class="modes">
+        <div class="mode on"><i></i>VELOCITY</div>
+        <div class="mode"><i></i>RATCHET</div>
+        <div class="mode"><i></i>CHANCE</div>
+      </div></div>`);
+  const pitch = [0, 30, -45, 0, 70, 0, -20, 40], vel = [100, 40, 70, 40, 100, 40, 70, 60];
+  for (let i = 0; i < 8; i++) {
+    steps.insertAdjacentHTML('beforeend', `<div class="knob-cell">
+      <div class="knob k-md" data-a="${pitch[i]}"></div>
+      <div class="knob k-sm" data-a="${-135 + vel[i] * 2.7}"></div>
+      </div>`);
+  }
+  steps.querySelectorAll('.knob').forEach(k => {
+    const a = parseFloat(k.dataset.a || 0);
+    const p = document.createElement('div'); p.className = 'ptr'; p.style.transform = `rotate(${a}deg)`; k.appendChild(p);
+  });
+
+  // the middle row's mode: click to switch (the small knobs show other values)
+  const rows = { VELOCITY: [100, 40, 70, 40, 100, 40, 70, 60], RATCHET: [0, 0, 33, 0, 0, 66, 0, 100], CHANCE: [100, 80, 100, 50, 100, 70, 100, 90] };
+  document.querySelectorAll('.mode').forEach(m => m.addEventListener('click', () => {
+    document.querySelectorAll('.mode').forEach(x => x.classList.toggle('on', x === m));
+    const values = rows[m.textContent.trim()];
+    steps.querySelectorAll('.knob.k-sm .ptr').forEach((p, i) => { p.style.transform = `rotate(${-135 + values[i] * 2.7}deg)`; });
+  }));
+
+  // sixteen step keys with LEDs
+  const keys = document.getElementById('stepkeys');
+  const on = [1,0,1,0,1,0,1,1, 1,0,1,0,1,0,0,1];
+  for (let i = 0; i < 16; i++) {
+    const cls = i === 4 ? 'white' : (on[i] ? 'on' : '');
+    keys.insertAdjacentHTML('beforeend', `<div class="key"><span class="led ${cls}"></span><span class="num">${i + 1}</span></div>`);
+  }
+
+  // patchbay: inputs and outputs as mini jacks
+  const ins = ['VCO1 CV','VCO2 CV','VCO RST','FM','VCO DEC','NOISE','EXT IN','VCF MOD','VCF DEC','VCF CV',
+               'TRIG','VEL','VCA CV','VCA DEC','TEMPO','RUN','ADV/CLK','RESET'];
+  const outs = ['VCO 1','VCO 2','VCO EG','VCF EG','VCA EG','TRIG','VEL','PITCH','VCA','LFO'];
+  const cell = (n, out) => `<div class="jack-cell"><div class="label">${n}</div><div class="jack ${out ? 'out' : ''}"></div></div>`;
+  document.getElementById('patch-in').innerHTML = ins.map(n => cell(n, false)).join('');
+  document.getElementById('patch-out').innerHTML = outs.map(n => cell(n, true)).join('');
+  document.querySelectorAll('.util-row .knob').forEach(k => {
+    const a = parseFloat(k.dataset.a || 0);
+    const p = document.createElement('div'); p.className = 'ptr'; p.style.transform = `rotate(${a}deg)`; k.appendChild(p);
+  });
+</script>
+</body>
+</html>

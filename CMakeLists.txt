@@ -61,6 +61,8 @@ set(PS8_SOURCES
     Source/ui/ProgramDisplay.cpp
     Source/ui/SequencerTools.cpp
     Source/ui/ServiceBoard.cpp
+    Source/ui/StatusDisplay.cpp
+    Source/ui/Theme.cpp
     Source/ui/Widgets.cpp)
 
 target_sources(PS8 PRIVATE ${PS8_SOURCES})

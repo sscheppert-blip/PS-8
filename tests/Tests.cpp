@@ -620,6 +620,62 @@ static void testPatch()
         check (peak (out) > 0.05f, "a square into TRIG fires the envelopes");
     }
 
+    // LFO OUT: a slow square from the LFO gates the VCA
+    {
+        auto s = init;
+        s.vcaDecay = 1.0f;
+        s.lfoShape = ps8::dsp::LfoShape::square;
+        s.lfoHz = 2.0f;
+        const auto out = renderPatched (s, withCables ({ { lfoOut, vcaCvIn } }), 0.5);
+        check (energy (out, 9600, 38400) > 1.0 && energy (out, 57600, 86400) < 1.0e-6,
+               "LFO OUT into VCA CV: the LFO square gates the sound");
+    }
+
+    // ATT 1: with nothing plugged in it gives a set voltage (+5 V times the knob)
+    {
+        auto s = init;
+        s.vco1Eg = s.vco2Eg = 0.0f;
+        s.vco2Level = s.noiseLevel = 0.0f;
+        s.cutoff = 1.0f;
+        s.vcaDecay = 0.8f;
+        s.att1 = 0.0f;
+        const auto plain = renderPatched (s, withCables ({ { att1Out, vco1CvIn } }), 0.5);
+        s.att1 = 0.2f;   // 1 V: one octave up
+        const auto up = renderPatched (s, withCables ({ { att1Out, vco1CvIn } }), 0.5);
+        const auto ratio = crossingRate (up, 192000.0, 0, 96000) / crossingRate (plain, 192000.0, 0, 96000);
+        check (ratio > 1.9 && ratio < 2.1, "ATT 1 without a cable in its input is a set voltage (1 V = one octave)");
+    }
+
+    // ATT 2 scales and inverts what comes in
+    {
+        auto s = init;
+        s.vcaDecay = 0.8f;
+        const auto chain = withCables ({ { velocityOut, att2In }, { att2Out, vcaCvIn } });
+        s.att2 = 1.0f;
+        const auto full = renderPatched (s, chain, 0.3);
+        s.att2 = 0.5f;
+        const auto half = renderPatched (s, chain, 0.3);
+        s.att2 = -1.0f;
+        const auto inverted = renderPatched (s, chain, 0.3);
+        const auto ratio = std::sqrt (energy (half, 9600, 57600) / energy (full, 9600, 57600));
+        check (ratio > 0.4 && ratio < 0.55 && peak (inverted) < 1.0e-4f,
+               "ATT 2 scales the signal (half: about half the level) and inverts it (VCA stays shut)");
+    }
+
+    // VCF CV tracks 1 V/oct: PITCH into it moves a self-oscillating filter by exactly the step pitch
+    {
+        auto s = init;
+        s.vco1Level = s.vco2Level = s.noiseLevel = 0.0f;
+        s.resonance = 1.0f;
+        s.cutoff = 0.45f;
+        s.vcfEg = 0.0f;
+        s.vcaDecay = 0.9f;
+        const auto low = renderPatched (s, withCables ({ { pitchOut, vcfCvIn } }), 0.6, 0.0f);
+        const auto high = renderPatched (s, withCables ({ { pitchOut, vcfCvIn } }), 0.6, 12.0f);
+        const auto ratio = crossingRate (high, 192000.0, 38400, 115200) / crossingRate (low, 192000.0, 38400, 115200);
+        check (ratio > 1.85 && ratio < 2.15, "PITCH into VCF CV: +12 semitones move the filter by an octave");
+    }
+
     // feedback patches stay finite
     {
         auto s = init;
@@ -1220,6 +1276,31 @@ static void testAnalog()
     }
 }
 
+static void testThemes()
+{
+    using ps8::ui::Theme;
+    juce::SharedResourcePointer<ps8::UserSettings> settings;
+    settings->setThemeId (ps8::ui::themeId (Theme::controlRoom));
+
+    PS8AudioProcessor processor;
+    std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
+    auto panels = [&]
+    {
+        std::vector<FrontPanel*> found;
+        for (auto* child : editor->getChildren())
+            if (auto* panel = dynamic_cast<FrontPanel*> (child))
+                found.push_back (panel);
+        return found;
+    };
+    auto panelTheme = [&] { return panels().size() == 1 ? ps8::ui::themeOf (panels()[0]) : Theme::numThemes; };
+    check (panelTheme() == Theme::controlRoom, "the editor opens in the look from the settings");
+
+    settings->setThemeId (ps8::ui::themeId (Theme::matteBlack));
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+    check (panelTheme() == Theme::matteBlack, "changing the look rebuilds the open panel");
+    check (ps8::ui::themeFromId ("nonsense") == ps8::ui::defaultTheme, "an unknown look falls back to the default");
+}
+
 static void testDoubleClick()
 {
     PS8AudioProcessor processor;
@@ -1356,6 +1437,10 @@ static void testRatchetAndChance()
 
     for (int i = 0; i < ps8::seq::maxSteps; ++i)
         setParam (processor, id::stepChance (i), 1.0f);
+
+    // let the last hit of the chance test ring out first, so it can't hide the first swung onset
+    setParam (processor, id::run, 0.0f);
+    render (60);
 
     // swing 75 %: every second step moves half a step later (6000 samples per step)
     setParam (processor, id::swing, 0.75f);
@@ -1533,9 +1618,12 @@ static int hatchFrames (const char* folder)
     return 0;
 }
 
-// Renders the editor to a PNG file (optionally with a few cables patched and/or the service hatch open).
-static int snapshot (const char* path, bool patched, bool service)
+// Renders the editor to a PNG file (optionally with a few cables patched and/or the service hatch open),
+// in the given look.
+static int snapshot (const char* path, bool patched, bool service, ps8::ui::Theme theme)
 {
+    juce::SharedResourcePointer<ps8::UserSettings> settings;
+    settings->setThemeId (ps8::ui::themeId (theme));
     PS8AudioProcessor processor;
 
     if (service)
@@ -1613,7 +1701,8 @@ int main (int argc, char** argv)
             return false;
         };
 
-        return snapshot (argv[2], has ("patched"), has ("service"));
+        return snapshot (argv[2], has ("patched"), has ("service"),
+                         has ("control") ? ps8::ui::Theme::controlRoom : ps8::ui::Theme::matteBlack);
     }
 
     if (argc == 3 && std::string_view (argv[1]) == "--icon")
@@ -1653,6 +1742,7 @@ int main (int argc, char** argv)
     testAnalog();
     testFactorySounds();
     testDoubleClick();
+    testThemes();
     testRatchetAndChance();
     testTextConversions();
 

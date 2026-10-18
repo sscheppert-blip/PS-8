@@ -477,7 +477,7 @@ namespace ps8::dsp
             // 4-pole ladder (zero-delay feedback, saturating input stage)
             const auto cutoffOctave = std::clamp (cutoffOct.next (b.targetCutoff, c) + b.egVcf * fe
                                                       + 3.0f * noiseMod.next (p.noiseVcf * p.noiseVcf, c) * vcfMod + b.lfoCutoff * mod
-                                                      + b.cutoffOffset + b.cutoffDrift * drift[2],
+                                                      + b.cutoffOffset + b.cutoffDrift * drift[2] + 5.0f * cv (vcfCvIn),
                                                   3.3f, b.maxCutoffOct);
             const auto g = std::tan (pi * std::exp2 (cutoffOctave) * invSampleRate);
             const auto G = g / (1.0f + g);
@@ -524,6 +524,11 @@ namespace ps8::dsp
             outputs[vcfEgOut] = fe;
             outputs[vcaOut] = vcaSignal;
             outputs[vcaEgOut] = envelope;
+            outputs[lfoOut] = mod;
+
+            // attenuators: an empty input is normalled to +5 V, so the knob alone gives a set voltage
+            outputs[att1Out] = (isPatched (att1In) ? cv (att1In) : 1.0f) * p.att1;
+            outputs[att2Out] = (isPatched (att2In) ? cv (att2In) : 1.0f) * p.att2;
         }
     }
 }

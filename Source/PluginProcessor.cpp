@@ -38,6 +38,8 @@ PS8AudioProcessor::PS8AudioProcessor()
     refs.lfoDepth = raw (id::lfoDepth);     refs.lfoTarget = raw (id::lfoTarget);
 
     refs.analog = raw (id::analog);
+    refs.att1 = raw (id::att1);
+    refs.att2 = raw (id::att2);
     unitSeed = (uint32_t) juce::Random::getSystemRandom().nextInt();
     presets = std::make_unique<ps8::Presets> (*this);
     patterns = std::make_unique<ps8::Patterns> (state);
@@ -111,6 +113,8 @@ ps8::dsp::Settings PS8AudioProcessor::readSettings (double bpm) const noexcept
     s.vcfEg = refs.vcfEg->load();           s.highPass = on (refs.highPass);
     s.pitchDecay = refs.pitchDecay->load(); s.vcfDecay = refs.vcfDecay->load(); s.vcaDecay = refs.vcaDecay->load();
     s.analog = refs.analog->load();
+    s.att1 = refs.att1->load();
+    s.att2 = refs.att2->load();
     s.vcaSlowAttack = on (refs.vcaSlow);    s.drive = refs.drive->load();       s.volume = refs.volume->load();
     s.pitchTarget = (ps8::dsp::PitchTarget) juce::jlimit (0, 2, juce::roundToInt (refs.pitchTarget->load()));
     s.glide = refs.glide->load();

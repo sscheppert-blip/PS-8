@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "Theme.h"
 
 // The patchbay strip: jack layout, the cables drawn over the whole panel, and plugging by mouse.
 // Drag from a jack to another to patch; dragging a plug out of an input moves or removes that cable;
@@ -24,9 +25,11 @@ namespace ps8::ui
         static const std::array<Jack, numJacks>& jacks();
         static const Jack& jackFor (patch::Output);
         static const Jack& jackFor (patch::Input);
+        // centre of the knob of attenuator 0 or 1 (between its IN and OUT jacks)
+        static juce::Point<float> attenuatorKnob (int index);
 
         // plate, labels and empty jacks (part of the panel background)
-        static void paintPanel (juce::Graphics&, float width);
+        static void paintPanel (juce::Graphics&, float width, Theme);
 
         explicit Patchbay (PS8AudioProcessor&);
 

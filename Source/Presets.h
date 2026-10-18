@@ -77,14 +77,18 @@ namespace ps8
         bool hasBaseline = false;
     };
 
-    // Per-user settings shared by all instances (window size)
-    class UserSettings
+    // Per-user settings shared by all instances (window size, panel look). Sends a change message
+    // when the look changes, so every open editor follows.
+    class UserSettings : public juce::ChangeBroadcaster
     {
     public:
         UserSettings();
 
         int getEditorWidth (int fallback) const;
         void setEditorWidth (int width);
+
+        juce::String getThemeId() const;
+        void setThemeId (const juce::String&);
 
     private:
         std::unique_ptr<juce::PropertiesFile> file;
