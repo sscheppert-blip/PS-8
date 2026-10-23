@@ -67,4 +67,4 @@ pluginval --strictness-level 10 --validate-in-process --validate ~/Library/Audio
 clap-validator validate ~/Library/Audio/Plug-Ins/CLAP/PS-8.clap
 ```
 
-`tools/check-sensitive-data.sh` (needs ripgrep) scans the tracked files for credentials and local paths.
+`tools/check-sensitive-data.sh` (needs ripgrep) scans the tracked files for credentials and local paths; the release workflow runs it too. `.githooks/pre-push` runs it before every push once enabled with `git config core.hooksPath .githooks`.
