@@ -6,6 +6,8 @@ PS-8 ist ein Percussion-Synth mit eingebautem Step-Sequencer (bis 16 Steps, 8 Pa
 jeden Klang selbst aus zwei Oszillatoren, Rauschen, Filter und drei Decay-Hüllkurven – und der
 Sequencer spielt dazu pro Step eine eigene Tonhöhe und Lautstärke.
 
+![PS-8](images/panel.png)
+
 ---
 
 ## Loslegen in der DAW
@@ -50,6 +52,8 @@ Doppelklick auf einen Regler setzt ihn zurück. Beim Drehen zeigt eine kleine An
 
 **SERVICE** drücken (oben rechts) oder auf eine Schraube an den Ecken der Modulreihe klicken:
 die Haube klappt hoch, darunter liegt die Service-Platine mit Trimmpotis. Zuklappen genauso.
+
+![Service-Platine](images/service.png)
 
 | Element | Funktion |
 |---|---|
